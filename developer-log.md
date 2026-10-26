@@ -5,6 +5,27 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-27 — Zod out of the initial client load
+
+**Finding** (user): the client bundle for `/` was 427 KB against a 376 KB scaffold baseline, and `zod` was 98.54 KB of the initial load, about 3× all of `src/`.
+
+**What the trace showed.** The import graph (`next analyze export`) had two client paths, not one. The expected path was the saved-cart schema on rehydrate. The unexpected one: `CatalogueFilters` reused the server's Zod URL parser to tidy its own form values. That's not a trust boundary (the server re-validates every URL), so the rules moved to a Zod-free `query/catalogue-query.ts`, with a parity test against the Zod parser over 500 generated cases.
+
+**What measurement changed.**
+- *The filter-form fix bought almost nothing* (98.54 → 98.48 KB). The cart path pulled in the same Zod modules, so one path was invisible while the other existed. It was necessary, not sufficient.
+- *`zod/mini` was a real cut* (98 → 59 KB initial; total 395 → 355 KB) with the same rules and tests. But it was still in the initial load.
+- *Lazy-loading the schema removed Zod from first visits entirely.* `getItem` imports the schema only when a saved cart exists. Rehydration was already after mount behind placeholders, so going async costs nothing visible. The write-skip check no longer needed the schema: it compares canonical JSON, and validation happens on read.
+- *The analyzer then disagreed with itself.* Its Initial-load view still showed Zod at 98.48 KB; its exported graph put Zod only in an `async` group. The browser settled it (production build): with no saved cart, 9 JS files, 157.4 KB transferred, no Zod chunk. With a saved cart, the 30.8 KB Zod chunk arrives at 46 ms, after DOMContentLoaded, and the cart restores.
+
+**Decisions**
+- Lazy-load, classic Zod. Validation is unchanged: same schema, same tests, every read.
+- Not stacking `zod/mini` on top (user decision): ~12 KB, after load, for returning visitors only, at the cost of rewriting a trust-boundary schema. Recorded in the README.
+- Hand-written validation rejected: smallest gain over lazy-loading, and it leaves "Zod at every trust boundary".
+
+**Regression guard**: `client-bundle-guard.test.ts` imports every `'use client'` module with `zod` mocked to throw. Reintroducing either original import fails it (the cart one fails all 6 cart client modules). It finds client modules by their directive, so new ones are covered automatically.
+
+---
+
 ## 2026-10-26 — Snapshot age in the fallback notice
 
 **What landed**: the snapshot notice says how old the saved catalogue is ("…from 3 hours ago."), in a `<time dateTime>` whose `title` holds the exact UTC timestamp ("Oct 26, 2026, 2:20 PM UTC").

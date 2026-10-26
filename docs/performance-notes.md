@@ -29,11 +29,12 @@
 - Saved cart: the Zod chunk (30.8 KB transferred, 105.8 KB decoded) is fetched after hydration (started at
   46 ms, after DOMContentLoaded at 44 ms), and the cart restored normally.
 
-**Caveat about the tool.** For variant A, the analyzer UI's "Initial load only" view still lists zod at
-98.48 KB. The exported graph (`next analyze export`) puts every Zod part in a client group of kind `async`
-(triggered by `persisted-cart-schema.ts`), and the browser confirms it isn't in the initial load. I'm
-treating the UI's "initial" filter as not distinguishing a plain `import()` inside a client module; this
-needs confirming before quoting UI numbers for A.
+**Why the browser, not the analyzer, is the "after" measurement.** The analyzer's Initial-load view still
+attributes Zod (98.48 KB) to the initial load for variant A. Its own exported module graph (`next analyze
+export`) disagrees: every Zod part sits in a client group of kind `async`, triggered by
+`persisted-cart-schema.ts`. The browser disagrees too: no Zod chunk is requested without a saved cart. So I
+measured in the browser. A network waterfall shows what users actually download; the analyzer view is a
+static estimate.
 
 **Decision: A** (path 1 fix + lazy-loaded cart schema).
 - Validation is untouched: same classic Zod schema, same tests, still runs on every read.
@@ -42,5 +43,9 @@ needs confirming before quoting UI numbers for A.
 - The write-skip check no longer needs the schema. It compares canonical JSON; anything malformed is simply
   overwritten, and validation happens on read.
 
-B could be layered on top later to shrink the on-demand chunk (about 40% smaller). C was rejected: it saves
-the least over A and moves away from "validate with Zod at every trust boundary".
+B was not layered on top: see the README, "What I'd do with more time". C was rejected: it saves the least over
+A and moves away from "validate with Zod at every trust boundary".
+
+**Regression guard.** `src/test/client-bundle-guard.test.ts` imports every `'use client'` module with `zod`
+made to throw, so a static Zod import anywhere in a client module's graph fails CI. The dynamic `import()` of
+the cart schema is deliberately allowed. Checked by reintroducing both original imports: each failed the guard.

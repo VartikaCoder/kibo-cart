@@ -25,3 +25,12 @@ Deliberately scoped out. The cart doesn't yet react to catalogue changes after a
   I'd load the price index in its own `<Suspense>` boundary so the shell stays static.
 
 This also covers the spec's "Product no longer exists" edge case, which has no UI test for the same reason.
+
+### `zod/mini` for the saved-cart schema
+
+Not done, deliberately. Zod is already out of the initial load: the saved-cart schema is imported on demand,
+only when a saved cart exists (docs/performance-notes.md). That on-demand chunk is 30.8 KB transferred.
+Rewriting the schema in `zod/mini`'s functional API would save about 40% of it, roughly 12 KB, fetched after the
+page has loaded and only by returning visitors with a cart. That's low value, and rewriting a trust-boundary
+schema in a different API is real risk. I measured the prototype (the full test suite passed against it) and
+left it out.
