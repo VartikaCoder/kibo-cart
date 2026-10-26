@@ -86,7 +86,8 @@ specs/001-shopping-cart/
 src/
 ├── app/
 │   ├── layout.tsx               # header (CartButton), CartHydrator, CatalogueSync, CartAnnouncer, CartDrawer
-│   ├── page.tsx                 # awaits searchParams → parse → applyCatalogueQuery; Suspense + skeleton
+│   ├── page.tsx                 # awaits searchParams → parse → applyCatalogueQuery
+│   ├── loading.tsx              # Suspense fallback: heading + filter-row placeholder + card-sized skeleton grid
 │   ├── error.tsx                # error state + retry()
 │   └── globals.css              # @theme design tokens (colour, focus ring, spacing, radii)
 ├── features/
@@ -95,16 +96,17 @@ src/
 │   │   │                        # to-product.ts, snapshot.json, fixtures/ (fixture + large generator)
 │   │   ├── schemas/             # api-product.ts, catalogue-query.ts
 │   │   ├── query/               # apply-catalogue-query.ts, serialize-catalogue-query.ts (pure)
-│   │   ├── components/          # ProductGrid, ProductCard, ProductGridSkeleton, CatalogueControls, SearchInput,
-│   │   │                        # Pagination, EmptyResults, SnapshotNotice
-│   │   └── index.ts
+│   │   ├── components/          # ProductListing, ProductGrid, ProductCard, ProductGridSkeleton, CatalogueFilters,
+│   │   │                        # ResultSummary, Pagination, EmptyResults, SnapshotNotice, CatalogueError
+│   │   ├── index.ts             # public surface (may include server-only code)
+│   │   └── client.ts            # client-safe subset, re-exported by index.ts
 │   └── cart/
 │       ├── domain/              # cart.ts (ops), selectors.ts, reconcile.ts, migrate.ts, types.ts (+ *.test.ts)
 │       ├── store/               # cart-store.ts, persisted-cart-schema.ts, safe-storage.ts
 │       ├── components/          # AddToCartControl, CartButton, CartDrawer, CartLineItem, CartAnnouncer,
 │       │                        # CartHydrator, CatalogueSync, announce-copy.ts
 │       └── index.ts
-├── components/ui/               # Button, IconButton, Badge, QuantityStepper, Drawer, Skeleton, VisuallyHidden
+├── components/ui/               # Button, IconButton, Badge, Rating, QuantityStepper, Drawer, Skeleton, VisuallyHidden
 ├── lib/                         # money.ts, stock.ts, inventory.ts (SIMULATED), env.ts (server-only CATALOGUE_SOURCE)
 └── test/                        # msw server + handlers, render helpers, jest setup
 

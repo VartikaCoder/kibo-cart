@@ -47,7 +47,9 @@ src/
       schemas/          # zod schemas + inferred types
       components/
       hooks/
-      index.ts          # public surface of the feature
+      index.ts          # the feature's public surface (may include server-only code)
+      client.ts         # the subset importable from Client Components; index.ts re-exports it.
+                        # Client Components import from client.ts, never from deep paths.
     cart/
       domain/           # PURE functions + types. No React, no Zustand, no browser APIs
       store/            # zustand store, persistence, cross-tab sync
