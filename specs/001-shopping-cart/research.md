@@ -105,20 +105,33 @@ in the API→domain mapper.
 
 **Decision**:
 - Zustand 5 `create` with the `persist` middleware, `name: 'kibo-cart'`, `version: 1`, `skipHydration: true`, and
-  `partialize` limited to `{ lines }`. A custom `storage` wrapper runs `PersistedCartSchema.safeParse` on read; on
-  failure it removes the key, logs in dev, and returns `null` (empty cart). `migrate(persisted, fromVersion)` is
-  routed through a pure, unit-tested `migrateCart` (only v1 exists today; unknown or future versions → empty cart).
-- A client `CartHydrator` (mounted once in the root layout) calls `useCartStore.persist.rehydrate()` in an effect
-  and sets `hydrated: true`. Before hydration, count/total UI renders a **neutral placeholder** (badge without a
-  number, totals as a skeleton), never `0`, so there is no flash of wrong data (US3-AS4).
+  `partialize` limited to `{ lines }`. A custom `storage` (`cart-storage.ts`) is the trust boundary. On read it parses
+  the envelope, routes it through the pure `migrateCart(state, version)` (only v1 exists today; unknown or future
+  versions → `null`), then runs `PersistedCartSchema.safeParse`. Any failure removes the key, logs in dev, and
+  returns an **empty cart envelope, not `null`**. With `null`, zustand's `persist` keeps the current state, so a
+  cart cleared or corrupted in another tab would survive in this one.
+- **Write-skipping.** `persist` calls `setItem` on every `setState`, including UI-only slices (drawer,
+  announcements, `hydrated`). The storage skips the write when the cart would serialise to what's already stored
+  (compared in a canonical, fixed-key-order form), and when the cart is empty and no key exists. That gives exactly
+  one write per cart change, and means rehydrating never writes, so nothing echoes back to other tabs.
+- A client `CartHydrator` (mounted once in the root layout) calls `connectCartPersistence()` in an effect. That
+  rehydrates, then calls the store's `completeHydration()`. It lowers any saved quantity above the line's current
+  limit (via the pure `clampToLimits`), records a per-line `quantityNotices` entry, sets `hydrated: true`, and
+  returns the reductions. `CartHydrator` announces them through the live region, e.g. "Backpack reduced from 8 to
+  4 — limited availability.", and the line shows a dismissible note, "Reduced to 4 — limited availability".
+  There's no dialog: a silent reduction would be a correctness surprise, and a blocking one would be out of
+  proportion. Before hydration, count/total UI renders a **neutral placeholder** (badge without a number, totals
+  as a skeleton), never `0`, so there is no flash of wrong data (US3-AS4).
 - Cross-tab: `CartHydrator` listens for `window` `storage` events where `key === 'kibo-cart'` and calls
   `rehydrate()`. `newValue === null` (cleared) → empty cart. Last-write-wins (spec clarification).
   `storage` fires only in *other* tabs, and rehydration does not write back, so there is no echo loop.
   An integration test asserts exactly one write per user action.
-- All actions use the functional `set(state => …)` form and delegate to pure domain functions, so rapid
-  repeated clicks each apply against the latest state (no stale closure, no lost updates).
+- Actions read the latest state with `get()` at call time, delegate to pure domain functions, and `set` the result.
+  zustand updates synchronously, so rapid repeated clicks each apply to the previous result (no stale closure,
+  no lost updates). This gives the same guarantee as the functional `set(state => …)` form, and lets a no-op outcome
+  (limit-reached, not-found, rejected) skip `set` entirely: no re-render, no write.
 
-**Rationale**: ADR-001 (to be written) records the Zustand choice. `skipHydration` + manual rehydrate is the
+**Rationale**: [ADR-001](../../docs/adr-001-state-management.md) records the Zustand choice. `skipHydration` + manual rehydrate is the
 documented way to keep SSR markup deterministic.
 
 **Alternatives considered**: `useSyncExternalStore` over localStorage directly — more hand-written code for the

@@ -60,6 +60,11 @@
 | limit-reached, availability | "Only {max} of {title} available (demo inventory)." |
 | clamped | "Quantity for {title} set to {q}." |
 | price reconciliation | "Prices updated for {n} items in your cart." |
+| quantity reduced on load, one line | "{title} reduced from {from} to {to} — limited availability." (or "— limit 10 per order") |
+| quantity reduced on load, several lines | "Quantities reduced for {n} items in your cart. Each item shows why." |
+
+Per-line note after a reduction on load (dismissible, not a dialog): "Reduced to {to} — limited availability", or
+"Reduced to {to} — limit 10 per order".
 
 ## Visual and states
 

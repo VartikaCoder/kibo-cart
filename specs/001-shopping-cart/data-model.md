@@ -96,17 +96,19 @@ serialised URL (canonical form).
 
 ## 6. Domain operations and outcomes *(pure, `features/cart/domain`)*
 
-Every operation is `(cart, …args) => { cart: Cart; outcome: CartOutcome }` and never mutates its input. `maxQuantity` is always passed in.
+Every operation is `(cart, …args) => { cart: Cart; outcome: CartOutcome }` and never mutates its input. When nothing
+changes, it returns the **same `cart` reference**, which the store uses to skip `set`. `maxQuantity` is always passed in.
 
 | Operation | Behaviour | Outcomes |
 |---|---|---|
 | `addItem(cart, snapshot, maxQuantity)` | new line with q = 1, or increment the existing line | `added`, `incremented`, `limit-reached` |
 | `increment(cart, productId, maxQuantity)` | q + 1 if q < max | `incremented`, `limit-reached`, `not-found` |
 | `decrement(cart, productId)` | q − 1; at q = 1 removes the line | `decremented`, `removed`, `not-found` |
-| `setQuantity(cart, productId, raw, maxQuantity)` | non-integer or NaN → unchanged; < 1 → 1; > max → max | `updated`, `clamped`, `rejected`, `unchanged`, `not-found` |
+| `setQuantity(cart, productId, raw: string \| number, maxQuantity)` | `raw` is what the user typed: a whole-number string (spaces allowed) or an integer. Anything else, including `''`, → `rejected`, line unchanged. < 1 → 1; > max → max | `updated`, `clamped`, `rejected`, `unchanged`, `not-found` |
 | `removeLine(cart, productId)` | removes the line | `removed`, `not-found` |
-| `reconcileWithCatalogue(cart, priceIndex)` | updates changed prices; reports missing ids | `{ priceChanges: {productId, fromCents, toCents}[]; missingIds: number[] }` |
-| `migrateCart(persisted: unknown, version: number)` | v1 → validated Cart; unknown version → `null` | — |
+| `clampToLimits(cart, maxQuantityFor)` | lowers quantities above their line's max; never below 1, never removes | `{ cart; adjustments: {productId, from, to}[] }` |
+| `reconcileWithCatalogue(cart, prices: Map<id, Cents>)` | updates changed prices; reports missing ids | `{ cart; priceChanges: {productId, fromCents, toCents}[]; missingIds: number[] }` |
+| `migrateCart(persisted: unknown, version: number)` | brings a known version to the current shape, **still unvalidated**; unknown version → `null` | — (the store validates the result with `PersistedCartSchema`, so every version goes through one schema, and Zod stays in `store/`) |
 
 `CartOutcome` is a discriminated union that carries `productId`, `quantity`, `maxQuantity`, and `limitReason` where
 relevant. The UI layer turns outcomes into announcement copy; the domain contains no UI strings.
@@ -137,5 +139,6 @@ any --live catalogue lacks id--> status=unavailable (derived) --remove--> (absen
 | `hydrated` | boolean | gates count/total rendering (US3-AS4) |
 | `announcement` | `{ id: number; message: string } \| null` | the single polite live region (FR-017) |
 | `priceNotices` | `Record<productId, { fromCents; toCents }>` | per-line "price changed" notice until dismissed (FR-018) |
+| `quantityNotices` | `Record<productId, { from; to; reason }>` | per-line "Reduced to N — …" note after a load lowered a saved quantity; cleared when dismissed or when that line changes |
 | `unavailableIds` | `number[]` | result of the last live reconciliation |
 | `drawerOpen` | boolean | drawer visibility |

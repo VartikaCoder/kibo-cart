@@ -5,6 +5,25 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-26 — Announce quantities reduced on load
+
+**Decision** (user): a silent reduction is a correctness surprise. The shopper left 8 and comes back to 4. Announce it through the polite live region on load, and show a dismissible per-line note, "Reduced to 4 — limited availability". Not a blocking dialog.
+
+**What landed**
+
+- Store: `completeHydration()` replaces the `persist` `onRehydrateStorage` hook. It clamps, records `quantityNotices`, sets `hydrated`, and *returns* the reductions, so the caller can announce without the store holding copy. A notice clears when dismissed or when that line changes, because after that it's stale.
+- `connectCartPersistence(store, { onQuantityReduced })` calls back after a load that lowered something. It's guarded by an `active` flag: in React Strict Mode the effect mounts, unmounts, and remounts, and without the guard the first, abandoned load would announce too.
+- `CartHydrator` and `CartAnnouncer` (the single polite region; messages are keyed by id, so repeats are re-read) are built and mounted in the root layout. `announce-copy.ts` holds the wording.
+- Not yet visible: the per-line note. Its copy (`quantityReducedNote`) and state are ready; `CartLineItem` renders it in the components task.
+
+**Found while testing**: rehydrating wrote once whenever the stored JSON's key order differed from ours, because the cart was equal but the string wasn't. Tabs only ever write canonical order, so this couldn't loop, but it broke "rehydrating never writes". Write-skipping now compares canonical forms.
+
+**Verified in the browser** (dev server): with a saved cart of 8 × product 4 (simulated availability 5), the live region read "… reduced from 8 to 5 — limited availability." once, and storage held 5. Reloading was silent. No console errors.
+
+**Docs**: R6 and data-model §6 now match the five differences from the previous entry. §8 gains `quantityNotices`, and the copy table gains the reduced-on-load rows.
+
+---
+
 ## 2026-10-26 — Cart domain and store (FR-006–FR-012, FR-018)
 
 **What landed**
@@ -30,8 +49,8 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 **Not done yet**
 
-- Components: `CartHydrator` (calls `connectCartPersistence` on mount), `CatalogueSync` (calls `reconcile` only when `source === 'live'`), `CartAnnouncer`, `AddToCartControl`, `CartButton`, `CartDrawer`, `CartLineItem`, announcement copy.
-- Quantities lowered by the post-hydration re-clamp aren't announced. The store applies the change; whether to tell the shopper is a UI decision for the components task.
+- Components: `CatalogueSync` (calls `reconcile` only when `source === 'live'`), `CartAnnouncer`, `AddToCartControl`, `CartButton`, `CartDrawer`, `CartLineItem`, announcement copy.
+- ~~Re-clamped quantities aren't announced~~ Done (user decision): see the next entry.
 
 ---
 
