@@ -43,7 +43,7 @@ src/
   app/                  # routes, layouts, loading/error files. Thin: compose features, no business logic
   features/
     catalog/
-      api/              # getProducts(), fetch + validation
+      api/              # fetchCatalogue() (fetch + validation + snapshot fallback), getCatalogue() ('use cache')
       schemas/          # zod schemas + inferred types
       components/
       hooks/
