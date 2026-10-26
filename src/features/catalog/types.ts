@@ -28,6 +28,8 @@ interface CatalogueData {
 
 export type Catalogue =
   | ({ source: 'live' } & CatalogueData)
+  /** CATALOGUE_SOURCE=fixture: bundled deterministic data for E2E tests. */
+  | ({ source: 'fixture' } & CatalogueData)
   | ({
       source: 'snapshot';
       fallbackReason: SourceFailure;

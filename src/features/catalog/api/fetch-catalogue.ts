@@ -1,6 +1,7 @@
 import 'server-only';
 import { z } from 'zod';
 import { devWarn } from '@/lib/dev-log';
+import { type CatalogueSourceMode, catalogueSourceMode } from '@/lib/env';
 import { ApiProductSchema } from '../schemas/api-product';
 import type { Catalogue, Product, SourceFailure } from '../types';
 import { CatalogueUnavailableError } from './catalogue-unavailable-error';
@@ -23,6 +24,8 @@ export interface FetchCatalogueOptions {
   /** `null` disables the fallback, so a live failure surfaces as `CatalogueUnavailableError`. */
   fallback?: FallbackLoader | null;
   timeoutMs?: number;
+  /** Defaults to `CATALOGUE_SOURCE`. `fixture` skips the network entirely (E2E). */
+  mode?: CatalogueSourceMode;
 }
 
 type ReadResult = { ok: true; products: Product[] } | { ok: false; failure: SourceFailure };
@@ -38,7 +41,10 @@ const CapturedAtSchema = z.iso.datetime({ offset: true });
 export async function fetchCatalogue({
   fallback = loadSnapshot,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  mode = catalogueSourceMode(),
 }: FetchCatalogueOptions = {}): Promise<Catalogue> {
+  if (mode === 'fixture') return readFixture();
+
   const live = await readLive(timeoutMs);
   if (live.ok) {
     return { source: 'live', ...withCategories(live.products) };
@@ -65,6 +71,13 @@ export async function fetchCatalogue({
     capturedAt: CapturedAtSchema.safeParse(data.capturedAt).data ?? null,
     ...withCategories(snapshot.products),
   };
+}
+
+/** Deterministic E2E data, validated exactly like live data. A broken fixture is a test-setup bug: throw. */
+async function readFixture(): Promise<Catalogue> {
+  const fixture = validateProducts((await import('./fixtures/catalogue.json')).default, 'fixture');
+  if (!fixture.ok) throw new Error(`[catalog] invalid fixture: ${fixture.failure.kind}`);
+  return { source: 'fixture', ...withCategories(fixture.products) };
 }
 
 async function readLive(timeoutMs: number): Promise<ReadResult> {

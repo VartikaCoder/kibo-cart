@@ -203,3 +203,24 @@ describe('fetchCatalogue — unavailable', () => {
     expect(error).toMatchObject({ liveFailure: { kind: 'http-error', status: 403 }, fallbackFailure });
   });
 });
+
+describe('fetchCatalogue — fixture mode (CATALOGUE_SOURCE=fixture)', () => {
+  it('serves the bundled fixture, validated, without touching the network or the fallback', async () => {
+    // If it fetched, this 500 would trigger the fallback, which must not be called.
+    server.use(productsHandlers.serverError());
+    const fallback = jest.fn();
+
+    const catalogue = await fetchCatalogue({ mode: 'fixture', fallback });
+
+    expect(catalogue.source).toBe('fixture');
+    expect(catalogue.products.map((p) => [p.id, p.priceCents])).toEqual([
+      [1, 10995],
+      [2, 2230],
+      [3, 5599],
+      [4, 1599],
+      [5, 69500],
+      [6, 16800],
+    ]);
+    expect(fallback).not.toHaveBeenCalled();
+  });
+});
