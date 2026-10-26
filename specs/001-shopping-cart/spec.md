@@ -123,7 +123,7 @@ A shopper sees current prices even if a price changed after they added the item.
 - **FR-015**: The UI MUST be responsive across mobile, tablet, and desktop.
 - **FR-016**: All functionality MUST be operable by keyboard, with visible focus and managed focus in overlays.
 - **FR-017**: Cart changes MUST be announced to assistive technology.
-- **FR-018**: Cart lines MUST reflect current catalogue prices and notify the shopper when a price changed.
+- **FR-018**: Cart lines MUST reflect current catalogue prices and notify the shopper when a price changed. **Status: not implemented** (deliberately scoped out); see the README, [What I'd do with more time](../../README.md#live-price-reconciliation-and-no-longer-available-lines-fr-018).
 
 ### Key Entities
 

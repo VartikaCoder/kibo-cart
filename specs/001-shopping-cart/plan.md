@@ -85,7 +85,7 @@ specs/001-shopping-cart/
 ```text
 src/
 ├── app/
-│   ├── layout.tsx               # header (CartButton), CartHydrator, CatalogueSync, CartAnnouncer, CartDrawer
+│   ├── layout.tsx               # header (CartButton), CartHydrator, CartAnnouncer, CartDrawer (CatalogueSync: scoped out)
 │   ├── page.tsx                 # awaits searchParams → parse → applyCatalogueQuery
 │   ├── loading.tsx              # Suspense fallback: heading + filter-row placeholder + card-sized skeleton grid
 │   ├── error.tsx                # error state + retry()
@@ -104,7 +104,7 @@ src/
 │       ├── domain/              # cart.ts (ops), selectors.ts, reconcile.ts, migrate.ts, types.ts (+ *.test.ts)
 │       ├── store/               # cart-store.ts, persisted-cart-schema.ts, safe-storage.ts
 │       ├── components/          # AddToCartControl, CartButton, CartDrawer, CartLineItem, CartAnnouncer,
-│       │                        # CartHydrator, CatalogueSync, announce-copy.ts
+│       │                        # CartHydrator, announce-copy.ts, cart-commands.ts (CatalogueSync: scoped out)
 │       └── index.ts
 ├── components/ui/               # Button, IconButton, Badge, Rating, QuantityStepper, Drawer, Skeleton, VisuallyHidden
 ├── lib/                         # money.ts, stock.ts, inventory.ts (SIMULATED), env.ts (server-only CATALOGUE_SOURCE)
@@ -134,7 +134,7 @@ holds shared test infrastructure. Domain tests sit beside their code.
 | FR-013, FR-014 | `api-product` schema, per-item `safeParse`; text-only rendering; CSP |
 | FR-015, FR-016 | Tailwind responsive grid; native `<dialog>`; focus rules (contracts/ui-components.md) |
 | FR-017 | `CartAnnouncer` + announcement copy table |
-| FR-018 | `CatalogueSync` + `reconcileWithCatalogue` (live source only) |
+| FR-018 | **Scoped out.** `reconcileWithCatalogue` and the store's `reconcile()` exist and are tested; `CatalogueSync` and the line states are not built. See [README](../../README.md#live-price-reconciliation-and-no-longer-available-lines-fr-018). |
 
 ## Open assumptions
 
