@@ -5,6 +5,16 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-26 — Duplicate product ids
+
+**Decision** (user): keep the first occurrence of an id, drop later ones, and warn in dev. Cart lines are keyed by product id, so two products sharing one would collide in the cart.
+
+**Detail worth recording**: deduplication happens *after* schema validation. If it ran first, an invalid item could claim an id and cause a later valid item with that id to be dropped too. A separate test pins this ordering. It passed before the fix too, and is there to stop a regression to dedupe-first.
+
+**Test-first**: the duplicate test failed before the change (both items came through) and passes after.
+
+---
+
 ## 2026-10-26 — Catalogue data layer (FR-010, FR-013, FR-014)
 
 **What landed**
@@ -37,4 +47,4 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 - `getCatalogue()` is typechecked and builds, but no route calls it yet. Jest can't run `'use cache'`, so it is excluded from coverage. It gets exercised once `page.tsx` uses it (and in E2E).
 - `CATALOGUE_SOURCE=fixture | fixture-large | fixture-broken` (contract) is not implemented. `'fixture'` was left out of `CatalogueSource` until it exists.
 - ~~No `server-only` guard~~ Done: `fetch-catalogue.ts` imports `server-only`, so a Client Component that pulls it in fails the build. Jest maps the package to its own `empty.js`, because the real entry throws outside the `react-server` export condition.
-- Duplicate product ids from the API are not handled. The spec doesn't cover this; it needs a decision before the cart keys lines by id.
+- ~~Duplicate product ids~~ Decided: keep the first valid item per id and drop later ones with a dev warning, because cart lines are keyed by id. Now in the spec's edge-case list.

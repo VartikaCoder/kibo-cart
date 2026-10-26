@@ -75,18 +75,25 @@ async function readFallback(load: FallbackLoader): Promise<ReadResult> {
   return validateProducts(raw, 'fallback');
 }
 
-/** Per-item safeParse: one bad item is dropped, it never fails the whole response (FR-013). */
+/**
+ * Per-item safeParse: one bad item is dropped, it never fails the whole response (FR-013).
+ * Cart lines are keyed by product id, so only the first valid item per id is kept.
+ */
 function validateProducts(raw: unknown, label: string): ReadResult {
   if (!Array.isArray(raw)) {
     return { ok: false, failure: { kind: 'not-an-array' } };
   }
   const products: Product[] = [];
+  const seenIds = new Set<number>();
   raw.forEach((item: unknown, index) => {
     const parsed = ApiProductSchema.safeParse(item);
-    if (parsed.success) {
-      products.push(toProduct(parsed.data));
-    } else {
+    if (!parsed.success) {
       devWarn(`[catalog] dropped invalid ${label} item at index ${index}:`, parsed.error.issues);
+    } else if (seenIds.has(parsed.data.id)) {
+      devWarn(`[catalog] dropped ${label} item with duplicate id ${parsed.data.id} at index ${index}`);
+    } else {
+      seenIds.add(parsed.data.id);
+      products.push(toProduct(parsed.data));
     }
   });
   if (products.length === 0) {

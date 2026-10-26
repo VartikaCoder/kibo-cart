@@ -69,6 +69,37 @@ describe('fetchCatalogue — live', () => {
     ]);
   });
 
+  it('keeps the first item for a duplicated id, drops later ones, and warns in dev', async () => {
+    server.use(
+      productsHandlers.success([
+        apiProduct({ id: 1, title: 'First' }),
+        apiProduct({ id: 2, title: 'Other' }),
+        apiProduct({ id: 1, title: 'Second' }),
+        apiProduct({ id: 1, title: 'Third' }),
+      ]),
+    );
+
+    const catalogue = await fetchCatalogue();
+
+    expect(catalogue.products.map((p) => [p.id, p.title])).toEqual([
+      [1, 'First'],
+      [2, 'Other'],
+    ]);
+    const dropped = warn.mock.calls.map(([message]) => message);
+    expect(dropped).toEqual([
+      expect.stringContaining('duplicate id 1 at index 2'),
+      expect.stringContaining('duplicate id 1 at index 3'),
+    ]);
+  });
+
+  it('treats an invalid first item as absent, so a later valid item with that id is kept', async () => {
+    server.use(productsHandlers.success([apiProduct({ id: 1, price: -1 }), apiProduct({ id: 1, title: 'Valid' })]));
+
+    const catalogue = await fetchCatalogue();
+
+    expect(catalogue.products.map((p) => p.title)).toEqual(['Valid']);
+  });
+
   it('keeps a <script> title as text', async () => {
     server.use(productsHandlers.success([apiProduct({ title: '<script>alert(1)</script>' })]));
     const catalogue = await fetchCatalogue();
