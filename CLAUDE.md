@@ -45,8 +45,8 @@ src/
     catalog/
       api/              # fetchCatalogue() (fetch + validation + snapshot fallback), getCatalogue() ('use cache')
       schemas/          # zod schemas + inferred types
+      query/            # PURE listing logic: filter/search/sort/paginate, URL (de)serialisation
       components/
-      hooks/
       index.ts          # the feature's public surface (may include server-only code)
       client.ts         # the subset importable from Client Components; index.ts re-exports it.
                         # Client Components import from client.ts, never from deep paths.
