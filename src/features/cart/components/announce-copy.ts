@@ -1,4 +1,5 @@
 import { type LineLimit, MAX_QTY_PER_LINE } from '@/lib/stock';
+import type { CartOutcome } from '../domain/types';
 import type { QuantityNotice, QuantityReduction } from '../store/cart-store';
 
 /** UI copy for cart events (contracts/ui-components.md, research R8). The domain and store hold no strings. */
@@ -31,4 +32,37 @@ export function quantityReducedAnnouncement(reductions: readonly QuantityReducti
     return `${reduction.title} reduced from ${reduction.from} to ${reduction.to} — ${reductionReason(reduction)}.`;
   }
   return `Quantities reduced for ${reductions.length} items in your cart. Each item shows why.`;
+}
+
+interface AnnouncementContext {
+  title: string;
+  /** The limit that applied, for limit-reached outcomes. */
+  limit?: LineLimit;
+  /** Cart totals after the change. */
+  itemCount: number;
+  subtotal: string;
+}
+
+/** The live-region message for an action's outcome (contracts/ui-components.md), or null for no announcement. */
+export function cartAnnouncement(outcome: CartOutcome, { title, limit, itemCount, subtotal }: AnnouncementContext): string | null {
+  switch (outcome.type) {
+    case 'added':
+      return `${title} added to cart. Cart has ${itemCount} ${itemCount === 1 ? 'item' : 'items'}.`;
+    case 'incremented':
+    case 'decremented':
+    case 'updated':
+      return `${title} quantity ${outcome.quantity}. Subtotal ${subtotal}.`;
+    case 'removed':
+      return `${title} removed from cart.`;
+    case 'limit-reached':
+      return limit?.reason === 'availability'
+        ? `Only ${outcome.maxQuantity} of ${title} available ${DEMO_INVENTORY}.`
+        : `Limit of ${MAX_QTY_PER_LINE} per order reached for ${title}.`;
+    case 'clamped':
+    case 'rejected':
+      return `Quantity for ${title} set to ${outcome.quantity}.`;
+    case 'unchanged':
+    case 'not-found':
+      return null;
+  }
 }

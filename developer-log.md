@@ -5,6 +5,33 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-26 — Cart UI components (FR-006–FR-009, FR-017, US2)
+
+**What landed**
+
+- `components/ui`: `IconButton` (an accessible name is required by its type), `QuantityStepper` (no cart knowledge; "+" at the max is `aria-disabled` with `aria-describedby` → the visible reason), `Drawer` (native modal `<dialog>`), and decorative `aria-hidden` icons.
+- `cart/components`: `AddToCartControl` on each product card, `CartButton` in the header, `CartDrawer`, `CartLineItem` (stepper, Remove, line total, reduced-quantity note with dismiss), totals, and the empty state.
+- `cart-commands.ts`: run a store action, then announce its outcome through `CartAnnouncer`. `cartAnnouncement()` covers every outcome in the contract's copy table; unchanged and not-found stay silent.
+
+**Decisions**
+
+- *One source for line limits.* `CartLineItem` only knows a product id, so the store exposes `lineLimit(productId)`, and `AddToCartControl` uses the same lookup. The contract has the card receive `limit` as a prop from the server; that would be a second inventory path.
+- *Focus.* Add → focus moves to the new stepper's "+". "−" at 1 → back to "Add". In the drawer, removing a line → next line's Remove, else previous, else the empty-state message (`tabIndex=-1`). Each one commits with `flushSync`, so the new UI exists before focus moves.
+- *Actions are blocked until the saved cart loads.* "Add" is `aria-disabled` until `hydrated`: an earlier add would be overwritten when the saved cart loads.
+- *Visible "Add to cart" with the title visually hidden inside it,* so the accessible name is "Add {title} to cart" (contract) and still contains the visible words.
+- *At quantity 1 a line has two controls named "Remove {title} from cart"* ("−" and the trash button), as the contract specifies. Both do the same thing, so the shared name is accurate.
+
+**Bug found in the browser, fixed test-first**: after Escape, the drawer was shut but the store still said open, so an immediate click on the cart button did nothing. Browsers fire `close` as a queued task, *after* Escape, and state was waiting for it. The jsdom stand-in fired `close` synchronously, which hid this. The fix: the stand-in now fires `close` asynchronously, like browsers. Every close path (button, backdrop, Escape via `cancel`) updates state synchronously, and the native `close` only restores focus. The new tests fail on the old code and pass on the fix.
+
+**Verified in the browser**: add → focus on "+", announced, badge "Cart, 1 item", saved. "+" announces the new subtotal. The drawer opens modal with focus inside, eight Tabs stay inside it, and Escape closes it and returns focus to the cart button. Escape then an immediate reopen works. Removing the last line focuses the empty state and saves an empty cart.
+
+**Not done**
+
+- `CatalogueSync` (live price reconciliation) wasn't in this brief. Until it exists, price-change notes and "No longer available" lines can't occur, so they aren't rendered yet.
+- Full keyboard flow, focus containment, and axe checks belong to Playwright (next).
+
+---
+
 ## 2026-10-26 — Announce quantities reduced on load
 
 **Decision** (user): a silent reduction is a correctness surprise. The shopper left 8 and comes back to 4. Announce it through the polite live region on load, and show a dismissible per-line note, "Reduced to 4 — limited availability". Not a blocking dialog.

@@ -1,5 +1,7 @@
+import type { LineLimit } from '@/lib/stock';
+import type { CartOutcome } from '../domain/types';
 import type { QuantityReduction } from '../store/cart-store';
-import { lineLimitLabel, quantityReducedAnnouncement, quantityReducedNote } from './announce-copy';
+import { cartAnnouncement, lineLimitLabel, quantityReducedAnnouncement, quantityReducedNote } from './announce-copy';
 
 const reduction = (reason: QuantityReduction['reason'], to: number): QuantityReduction => ({
   productId: 1,
@@ -44,5 +46,26 @@ describe('limit copy (research R8)', () => {
     expect(quantityReducedAnnouncement([reduction('availability', 4), { ...reduction('policy', 10), productId: 2 }])).toBe(
       'Quantities reduced for 2 items in your cart. Each item shows why.',
     );
+  });
+});
+
+describe('cartAnnouncement (contracts/ui-components.md)', () => {
+  const ctx = { title: 'Mug', itemCount: 3, subtotal: '$12.00' };
+
+  it.each<[CartOutcome, Partial<typeof ctx> & { limit?: LineLimit }, string | null]>([
+    [{ type: 'added', productId: 1, quantity: 1 }, {}, 'Mug added to cart. Cart has 3 items.'],
+    [{ type: 'added', productId: 1, quantity: 1 }, { itemCount: 1 }, 'Mug added to cart. Cart has 1 item.'],
+    [{ type: 'incremented', productId: 1, quantity: 2 }, {}, 'Mug quantity 2. Subtotal $12.00.'],
+    [{ type: 'decremented', productId: 1, quantity: 1 }, {}, 'Mug quantity 1. Subtotal $12.00.'],
+    [{ type: 'updated', productId: 1, quantity: 4 }, {}, 'Mug quantity 4. Subtotal $12.00.'],
+    [{ type: 'removed', productId: 1 }, {}, 'Mug removed from cart.'],
+    [{ type: 'limit-reached', productId: 1, quantity: 10, maxQuantity: 10 }, { limit: { max: 10, reason: 'policy' } }, 'Limit of 10 per order reached for Mug.'],
+    [{ type: 'limit-reached', productId: 1, quantity: 5, maxQuantity: 5 }, { limit: { max: 5, reason: 'availability' } }, 'Only 5 of Mug available (demo inventory).'],
+    [{ type: 'clamped', productId: 1, quantity: 5, requested: 9, maxQuantity: 5 }, {}, 'Quantity for Mug set to 5.'],
+    [{ type: 'rejected', productId: 1, quantity: 2 }, {}, 'Quantity for Mug set to 2.'],
+    [{ type: 'unchanged', productId: 1, quantity: 2 }, {}, null],
+    [{ type: 'not-found', productId: 1 }, {}, null],
+  ])('%j → %p', (outcome, overrides, expected) => {
+    expect(cartAnnouncement(outcome, { ...ctx, ...overrides })).toBe(expected);
   });
 });

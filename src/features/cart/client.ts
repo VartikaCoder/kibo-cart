@@ -19,3 +19,6 @@ export type {
 export { lineLimitLabel, quantityReducedNote } from './components/announce-copy';
 export { CartAnnouncer } from './components/cart-announcer';
 export { CartHydrator } from './components/cart-hydrator';
+export { AddToCartControl } from './components/add-to-cart-control';
+export { CartButton } from './components/cart-button';
+export { CartDrawer } from './components/cart-drawer';

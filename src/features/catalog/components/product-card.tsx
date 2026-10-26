@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Rating } from '@/components/ui/rating';
+import { AddToCartControl } from '@/features/cart';
 import { formatMoney } from '@/lib/money';
 import type { Product } from '../types';
 
@@ -32,6 +33,14 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         <h2 className="line-clamp-2 min-h-10 text-sm font-medium leading-5">{product.title}</h2>
         <Rating rate={product.rating.rate} count={product.rating.count} />
         <p className="mt-auto text-lg font-semibold">{formatMoney(product.priceCents)}</p>
+        <AddToCartControl
+          product={{
+            productId: product.id,
+            unitPriceCents: product.priceCents,
+            title: product.title,
+            imageUrl: product.imageUrl,
+          }}
+        />
       </div>
     </article>
   );

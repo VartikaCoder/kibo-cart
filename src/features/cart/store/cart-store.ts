@@ -65,6 +65,8 @@ export interface CartActions {
    * per lowered line, marks the cart hydrated, and returns what was lowered (for the announcement).
    */
   completeHydration(): QuantityReduction[];
+  /** The current limit for a line (policy or simulated availability), for display. */
+  lineLimit(productId: number): LineLimit;
   dismissPriceNotice(productId: number): void;
   dismissQuantityNotice(productId: number): void;
   announce(message: string): void;
@@ -164,6 +166,7 @@ export function createCartStore({ inventory = simulatedInventory, storage = brow
             return reductions;
           },
 
+          lineLimit: limitFor,
           dismissPriceNotice: (productId) => set((state) => ({ priceNotices: without(state.priceNotices, productId) })),
           dismissQuantityNotice: (productId) =>
             set((state) => ({ quantityNotices: without(state.quantityNotices, productId) })),
