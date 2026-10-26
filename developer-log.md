@@ -5,6 +5,28 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-27 — Security: CSP, headers, audit
+
+**What landed**: static CSP plus `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` for every route; the CSP E2E test now enforces; `react/no-danger` is a lint error; `docs/security-notes.md`.
+
+**Verified, not guessed.** A scratch Playwright probe recorded every `securitypolicyviolation` while browsing, adding to cart, opening the drawer, and reloading against a production build. I started from `'self'` everywhere.
+- *Strictest policy*: 7 inline scripts blocked, and **the page never hydrated**. So `script-src 'unsafe-inline'` is required (R10 confirmed).
+- *Then*: 12 `style-src-attr` violations (`next/image` `fill` and the rating bar), and one `eval` from Zod's JIT probe in the lazy chunk.
+- *Final*: `style-src-attr 'unsafe-inline'` (attributes only; `<style>` stays blocked) and `z.config({ jitless: true })` gave **0 violations**.
+- *Dev server*: 33 inline `<style>` violations from Next's dev-tools overlay, so a dev-only `style-src 'unsafe-inline'` → 0.
+
+**Where the plan was wrong**: R10 expected `img-src … https://fakestoreapi.com data:`. Neither is needed, because every image comes through `/_next/image`. R10 also allowed all inline styles where attributes suffice. R10 is revised.
+
+**Surprise**: Zod v4 probes `new Function` to decide whether to JIT. It swallows the error, but the browser still reports a CSP violation, so the E2E test would have failed on every saved-cart read. Zod has a `jitless` option for exactly this, and its source comment names strict CSPs.
+
+**CSP test**: no longer skips. It asserts the headers (and no `unsafe-eval` in production), browses, adds, opens the drawer, and reloads to cover the lazy validation. Removing `style-src-attr` makes it fail with 50 violations, as checked.
+
+**`npm audit`**: 0 vulnerabilities in all 679 packages, and 0 in the 30 production ones. Three install scripts (`@parcel/watcher`, `msw`, `unrs-resolver`) are left unapproved under npm 11, because everything works without them. Reasons are in the security notes.
+
+**Not done**: nonce or SRI script-src (trade-off in the security notes, §4); `upgrade-insecure-requests` (it would upgrade the http localhost E2E server; production is HTTPS-only on Vercel).
+
+---
+
 ## 2026-10-27 — Playwright E2E suite
 
 **What landed**

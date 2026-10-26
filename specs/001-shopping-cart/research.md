@@ -209,6 +209,15 @@ Results:
 Also `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a restrictive `Permissions-Policy`.
 `next/font` self-hosts Geist, so no external font origin is needed.
 
+*Revised 2026-10-27, after verifying in the browser* (docs/security-notes.md §4). Starting from `'self'` only and
+adding just what reported violations proved necessary changed three things. `img-src` is `'self'` only: images
+are served through `/_next/image`, so neither `https://fakestoreapi.com` nor `data:` is needed. Inline styles
+are allowed as **attributes only** (`style-src-attr 'unsafe-inline'`, keeping `style-src 'self'`), because the
+only inline styles are `style="…"` attributes from `next/image` and the rating bar; development additionally
+allows inline `<style>` for Next's dev-tools overlay. And the client-loaded Zod schema runs `jitless`, so Zod's
+`new Function` probe doesn't trigger a violation. `script-src 'unsafe-inline'` is confirmed: without it the
+page never hydrates.
+
 **Rationale**: Nonce CSP forces dynamic rendering of every page (`content-security-policy.md`), which removes the
 static shell and hurts SC-004. The XSS surface is already small: there is no `dangerouslySetInnerHTML`, all text
 renders as text, and there is no user-generated HTML. The `'unsafe-inline'` trade-off is written up in the security notes.
