@@ -7,4 +7,15 @@ export type { Cart, CartLine, CartOutcome, ProductSnapshot } from './domain/type
 export type { PriceChange, Reconciliation } from './domain/reconcile';
 export { connectCartPersistence } from './store/cart-persistence';
 export { useCartStore } from './store/cart-store';
-export type { Announcement, CartState, CartStore, LimitedOutcome, PriceNotice } from './store/cart-store';
+export type {
+  Announcement,
+  CartState,
+  CartStore,
+  LimitedOutcome,
+  PriceNotice,
+  QuantityNotice,
+  QuantityReduction,
+} from './store/cart-store';
+export { quantityReducedNote } from './components/announce-copy';
+export { CartAnnouncer } from './components/cart-announcer';
+export { CartHydrator } from './components/cart-hydrator';

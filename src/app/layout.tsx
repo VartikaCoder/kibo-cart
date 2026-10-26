@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
+import { CartAnnouncer, CartHydrator } from '@/features/cart';
 import './globals.css';
 
 const geistSans = Geist({
@@ -30,6 +31,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           </div>
         </header>
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">{children}</main>
+        <CartHydrator />
+        <CartAnnouncer />
       </body>
     </html>
   );

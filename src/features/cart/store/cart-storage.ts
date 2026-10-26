@@ -50,7 +50,7 @@ export function createCartStorage(getStorage: () => BrowserStorage | undefined):
     setItem(name, value) {
       const current = read(name);
       const next = serialise(value.state.lines);
-      if (next === current) return;
+      if (current !== null && canonical(current) === next) return;
       if (current === null && value.state.lines.length === 0) return; // an empty cart needs no key
       try {
         getStorage()?.setItem(name, next);
@@ -87,6 +87,20 @@ function parseSavedCart(raw: string): CartLine[] | null {
     return null;
   }
   return parsed.data.lines;
+}
+
+/** The stored value re-serialised in canonical form, so equal carts compare equal whatever their key order. */
+function canonical(raw: string): string | null {
+  try {
+    const envelope: unknown = JSON.parse(raw);
+    if (typeof envelope !== 'object' || envelope === null || !('version' in envelope) || envelope.version !== CART_VERSION) {
+      return null;
+    }
+    const lines = PersistedCartSchema.safeParse((envelope as { state?: unknown }).state);
+    return lines.success ? serialise(lines.data.lines) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Fixed key order, so the same cart always serialises to the same string (write-skipping relies on it). */

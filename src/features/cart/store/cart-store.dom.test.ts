@@ -19,6 +19,9 @@ let writes: jest.SpyInstance;
 let warn: jest.SpyInstance;
 let disconnect: (() => void) | undefined;
 
+/** Lets pending promise chains (rehydrate → completeHydration) finish. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 beforeEach(() => {
   localStorage.clear();
   writes = jest.spyOn(Storage.prototype, 'setItem');
@@ -31,10 +34,10 @@ afterEach(() => {
   warn.mockRestore();
 });
 
-async function hydratedStore(available?: Record<number, number>) {
+async function hydratedStore(available?: Record<number, number>, onQuantityReduced?: jest.Mock) {
   const store = createCartStore({ inventory: inventory(available) });
-  disconnect = connectCartPersistence(store);
-  await Promise.resolve(); // rehydrate resolves synchronously for sync storage; flush its then-chain
+  disconnect = connectCartPersistence(store, { onQuantityReduced });
+  await settle();
   writes.mockClear();
   return store;
 }
@@ -139,13 +142,52 @@ describe('hydration (FR-011, US3-AS4)', () => {
     expect(writes).not.toHaveBeenCalled();
   });
 
-  it('lowers saved quantities above the current line limit', async () => {
-    localStorage.setItem(CART_STORAGE_KEY, saved([line(1, 9), line(2, 2)]));
+  it('lowers saved quantities above the current limit, saves that, and reports it once for announcing', async () => {
+    localStorage.setItem(CART_STORAGE_KEY, saved([line(1, 8), line(2, 2)]));
+    const onQuantityReduced = jest.fn();
 
-    const store = await hydratedStore({ 1: 4 });
+    const store = await hydratedStore({ 1: 4 }, onQuantityReduced);
 
     expect(quantities(store)).toEqual([[1, 4], [2, 2]]);
     expect(storedLines()).toEqual([line(1, 4), line(2, 2)]);
+    expect(onQuantityReduced).toHaveBeenCalledTimes(1);
+    expect(onQuantityReduced).toHaveBeenCalledWith([
+      { productId: 1, title: 'Product 1', from: 8, to: 4, reason: 'availability' },
+    ]);
+    expect(store.getState().quantityNotices).toEqual({ 1: { from: 8, to: 4, reason: 'availability' } });
+  });
+
+  it('does not report anything when no saved quantity was lowered', async () => {
+    localStorage.setItem(CART_STORAGE_KEY, saved([line(1, 2)]));
+    const onQuantityReduced = jest.fn();
+
+    const store = await hydratedStore({ 1: 4 }, onQuantityReduced);
+
+    expect(onQuantityReduced).not.toHaveBeenCalled();
+    expect(store.getState().quantityNotices).toEqual({});
+  });
+
+  it.each([
+    ['dismissed', (s: ReturnType<CartStoreApi['getState']>) => s.dismissQuantityNotice(1)],
+    ['made stale by changing that line', (s: ReturnType<CartStoreApi['getState']>) => s.decrement(1)],
+  ])('removes the reduced-quantity notice when %s, leaving other lines’ notices', async (_label, act) => {
+    localStorage.setItem(CART_STORAGE_KEY, saved([line(1, 8), line(2, 9)]));
+    const store = await hydratedStore({ 1: 4, 2: 5 });
+
+    act(store.getState());
+
+    expect(store.getState().quantityNotices).toEqual({ 2: { from: 9, to: 5, reason: 'availability' } });
+  });
+
+  it('reports nothing if disconnected before loading finished (e.g. React Strict Mode remount)', async () => {
+    localStorage.setItem(CART_STORAGE_KEY, saved([line(1, 8)]));
+    const onQuantityReduced = jest.fn();
+    const store = createCartStore({ inventory: inventory({ 1: 4 }) });
+
+    connectCartPersistence(store, { onQuantityReduced })();
+    await settle();
+
+    expect(onQuantityReduced).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -193,7 +235,7 @@ describe('cross-tab sync (FR-011, US3-AS2)', () => {
 
     otherTab(CART_STORAGE_KEY, saved([line(2, 3)]));
     writes.mockClear();
-    await Promise.resolve();
+    await settle();
 
     expect(quantities(store)).toEqual([[2, 3]]);
     expect(writes).not.toHaveBeenCalled();
@@ -208,7 +250,7 @@ describe('cross-tab sync (FR-011, US3-AS2)', () => {
     store.getState().addItem(snapshot(1));
 
     otherTab(key, value);
-    await Promise.resolve();
+    await settle();
 
     expect(store.getState().lines).toEqual([]);
   });
@@ -222,7 +264,7 @@ describe('cross-tab sync (FR-011, US3-AS2)', () => {
     disconnect = undefined;
     localStorage.setItem(CART_STORAGE_KEY, saved([]));
     window.dispatchEvent(new StorageEvent('storage', { key: CART_STORAGE_KEY, storageArea: localStorage }));
-    await Promise.resolve();
+    await settle();
 
     expect(quantities(store)).toEqual([[1, 1]]);
   });

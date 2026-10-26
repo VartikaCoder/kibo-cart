@@ -14,6 +14,18 @@ export interface PriceNotice {
   toCents: Cents;
 }
 
+/** A saved quantity was lowered on load because the line limit is now lower. */
+export interface QuantityNotice {
+  from: number;
+  to: number;
+  reason: LineLimit['reason'];
+}
+
+export interface QuantityReduction extends QuantityNotice {
+  productId: number;
+  title: string;
+}
+
 export interface Announcement {
   /** Changes on every announcement, so repeating the same message is still announced. */
   id: number;
@@ -23,10 +35,12 @@ export interface Announcement {
 export interface CartState {
   /** Persisted. Everything else is per-page UI state (data-model §8). */
   lines: readonly CartLine[];
-  /** False until the saved cart has been read; until then, render placeholders, not 0 (US3-AS4). */
+  /** False until the saved cart has been read and checked; until then, render placeholders, not 0 (US3-AS4). */
   hydrated: boolean;
   announcement: Announcement | null;
   priceNotices: Readonly<Record<number, PriceNotice>>;
+  /** Shown on the line until dismissed or until the shopper changes that line. */
+  quantityNotices: Readonly<Record<number, QuantityNotice>>;
   /** Products missing from the last live catalogue. Excluded from totals; removable only. */
   unavailableIds: readonly number[];
   drawerOpen: boolean;
@@ -46,7 +60,13 @@ export interface CartActions {
   removeLine(productId: number): CartOutcome;
   /** Call only with a live catalogue's prices; a snapshot isn't authoritative (research R3). */
   reconcile(prices: ReadonlyMap<number, Cents>): Reconciliation;
+  /**
+   * Runs after the saved cart is read: lowers quantities above the current line limit, records a notice
+   * per lowered line, marks the cart hydrated, and returns what was lowered (for the announcement).
+   */
+  completeHydration(): QuantityReduction[];
   dismissPriceNotice(productId: number): void;
+  dismissQuantityNotice(productId: number): void;
   announce(message: string): void;
   setDrawerOpen(open: boolean): void;
 }
@@ -68,17 +88,21 @@ const browserLocalStorage = () => (typeof window === 'undefined' ? undefined : w
 export function createCartStore({ inventory = simulatedInventory, storage = browserLocalStorage }: CartStoreOptions = {}) {
   const limitFor = (productId: number) => getLineLimit(productId, inventory);
 
-  const store = create<CartStore>()(
+  return create<CartStore>()(
     persist(
       (set, get) => {
-        /** Stores a domain result. No-op outcomes don't call `set`, so they cause no re-render and no write. */
+        /**
+         * Stores a domain result. No-op outcomes don't call `set`, so they cause no re-render and no write.
+         * Any change to a line makes its "reduced on load" notice stale; removal also drops its price notice.
+         */
         function commit({ cart, outcome }: CartResult): CartOutcome {
           if (cart === get()) return outcome;
-          set((state) =>
-            outcome.type === 'removed'
-              ? { lines: cart.lines, priceNotices: without(state.priceNotices, outcome.productId) }
-              : { lines: cart.lines },
-          );
+          const { productId } = outcome;
+          set((state) => ({
+            lines: cart.lines,
+            quantityNotices: without(state.quantityNotices, productId),
+            ...(outcome.type === 'removed' && { priceNotices: without(state.priceNotices, productId) }),
+          }));
           return outcome;
         }
 
@@ -92,6 +116,7 @@ export function createCartStore({ inventory = simulatedInventory, storage = brow
           hydrated: false,
           announcement: null,
           priceNotices: {},
+          quantityNotices: {},
           unavailableIds: [],
           drawerOpen: false,
 
@@ -115,7 +140,33 @@ export function createCartStore({ inventory = simulatedInventory, storage = brow
             }));
             return result;
           },
+
+          completeHydration: () => {
+            const state = get();
+            const { cart, adjustments } = domain.clampToLimits(state, (productId) => limitFor(productId).max);
+            const reductions = adjustments.map(({ productId, from, to }) => ({
+              productId,
+              from,
+              to,
+              reason: limitFor(productId).reason,
+              title: cart.lines.find((l) => l.productId === productId)?.title ?? '',
+            }));
+            set({
+              hydrated: true,
+              ...(reductions.length > 0 && {
+                lines: cart.lines,
+                quantityNotices: {
+                  ...state.quantityNotices,
+                  ...Object.fromEntries(reductions.map(({ productId, from, to, reason }) => [productId, { from, to, reason }])),
+                },
+              }),
+            });
+            return reductions;
+          },
+
           dismissPriceNotice: (productId) => set((state) => ({ priceNotices: without(state.priceNotices, productId) })),
+          dismissQuantityNotice: (productId) =>
+            set((state) => ({ quantityNotices: without(state.quantityNotices, productId) })),
           announce: (message) => set((state) => ({ announcement: { id: (state.announcement?.id ?? 0) + 1, message } })),
           setDrawerOpen: (open) => set({ drawerOpen: open }),
         };
@@ -126,20 +177,11 @@ export function createCartStore({ inventory = simulatedInventory, storage = brow
         storage: createCartStorage(storage),
         partialize: (state) => ({ lines: [...state.lines] }),
         // Read the saved cart only on the client, after the first render, so server and client markup match.
+        // `connectCartPersistence` rehydrates and then calls `completeHydration`.
         skipHydration: true,
-        onRehydrateStorage: () => () => afterHydration(),
       },
     ),
   );
-
-  /** Limits can change between visits (simulated availability may be below 10), so re-clamp saved quantities. */
-  function afterHydration() {
-    const state = store.getState();
-    const { cart } = domain.clampToLimits(state, (productId) => limitFor(productId).max);
-    store.setState(cart === state ? { hydrated: true } : { hydrated: true, lines: cart.lines });
-  }
-
-  return store;
 }
 
 export type CartStoreApi = ReturnType<typeof createCartStore>;
@@ -148,5 +190,6 @@ export type CartStoreApi = ReturnType<typeof createCartStore>;
 export const useCartStore = createCartStore();
 
 function without<T>(record: Readonly<Record<number, T>>, key: number): Record<number, T> {
+  if (!(key in record)) return record;
   return Object.fromEntries(Object.entries(record).filter(([id]) => Number(id) !== key));
 }
