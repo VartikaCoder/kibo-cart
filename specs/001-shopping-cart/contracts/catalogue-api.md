@@ -33,8 +33,9 @@ Do not add one.
 | 200 + array, 0 valid items | snapshot path | `snapshot` |
 | non-2xx / network error / timeout / invalid JSON / non-array | snapshot path | `snapshot` |
 | snapshot path and snapshot yields 0 valid items | throw `CatalogueUnavailableError` → `error.tsx` | — |
-| `CATALOGUE_SOURCE=fixture` / `fixture-large` (test/E2E only) | local fixture, same validation | `fixture` |
-| `CATALOGUE_SOURCE=fixture-broken` (test/E2E only) | simulates live + snapshot both invalid → `CatalogueUnavailableError` | — |
+| `CATALOGUE_SOURCE=fixture` (test/E2E only) | `fixtures/catalogue.json` (6 products), same validation, no network | `fixture` |
+| `CATALOGUE_SOURCE=fixture-large` / `fixture-broken` | **not implemented**: large-catalogue and error-state paths are covered by unit/component tests | — |
+| any other `CATALOGUE_SOURCE` value | startup error (`lib/env.ts`), never a silent fallback to live data | — |
 
 ## Public surface (`features/catalog/index.ts`)
 

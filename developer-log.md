@@ -5,6 +5,32 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-27 — Playwright E2E suite
+
+**What landed**
+
+- `@playwright/test` 1.64 and `@axe-core/playwright` 4.14, with Chromium. Scripts: `npm run e2e`, `e2e:install` (CI: `--with-deps chromium`), `e2e:report`. CI settings: `forbidOnly`, 2 retries, 1 worker, GitHub reporter, trace on first retry.
+- Runs against `next build && next start` with `CATALOGUE_SOURCE=fixture`. `next.config` reads `NEXT_DIST_DIR`, and E2E builds go to `.next-e2e`, so a fixture build can never be served by a plain `npm start`.
+- Fixture mode (`lib/env.ts`, `fetchCatalogue({ mode })`): 6 products from the snapshot, same validation, no network. Product 1 is capped by policy (10), product 4 by simulated availability (5), so both limit reasons have real data. An unknown `CATALOGUE_SOURCE` throws rather than falling back to live.
+
+**The suite: 8 tests, each covering what jsdom can't**
+
+| Spec | Covers |
+|---|---|
+| `cart` core flow | URL filter → add on card → "+" → type 3 in the drawer → subtotal $374.45 (announced and shown) → reload → same lines and total |
+| `cart` limits ×2 | real simulated inventory: "+" `aria-disabled`, description "Limit 10 per order" vs "Only 5 available (demo inventory)", click announces the right reason |
+| `persistence` cross-tab | two tabs, real `storage` events, both directions, under 1 s (SC-007) |
+| `keyboard` | add and adjust by keyboard, open the cart, 15 Tabs never leave the modal (real `showModal` inertness), Escape → focus back on the cart button |
+| `a11y` ×2 | axe, WCAG 2.2 A/AA: listing, and drawer open with a line at its limit. **Zero violations on the first run** |
+| `a11y` CSP | skips with a reason while there's no CSP header; enforces itself once the headers land |
+
+**Notes**
+
+- One keyboard-test failure on the very first run (cold server, 5 workers) didn't reproduce in 42 parallel repeats or in isolation. The Tab helper now records what it tabbed through, so a recurrence will say why.
+- Not built: `fixture-large` and `fixture-broken` (contract updated), and the CI workflow file. Both are separate pieces.
+
+---
+
 ## 2026-10-27 — Zod out of the initial client load
 
 **Finding** (user): the client bundle for `/` was 427 KB against a 376 KB scaffold baseline, and `zod` was 98.54 KB of the initial load, about 3× all of `src/`.
