@@ -87,7 +87,9 @@ A shopper sees current prices even if a price changed after they added the item.
   - *Stock (simulated)*: availability comes from a clearly labelled simulated inventory adapter, not from the API. It is **not** added to the API schema. The UI and docs never present it as real stock data.
   - The effective maximum is `min(perLineCap, simulatedAvailability)`; a real inventory API would replace only the adapter.
 - **Invalid API data**: products failing validation are excluded; if none are valid, the error state is shown.
-- **Duplicate product ids**: if the catalogue contains more than one valid item with the same id, the first is kept and later ones are dropped (logged in development). Cart lines are keyed by product id, so duplicates would collide. Validation runs first, so an invalid item never claims an id.
+- **Duplicate product ids**: two rules, by source. Cart lines are keyed by product id, so duplicates must never reach the cart.
+  - *Catalogue (API data)*: the first valid item with an id is kept and later ones are dropped (logged in development). Validation runs first, so an invalid item never claims an id. API data is third-party and partially usable: one bad item shouldn't cost the shopper the rest of the catalogue.
+  - *Saved cart (localStorage)*: duplicate ids invalidate the whole payload, and the cart resets to empty (contracts/persisted-cart.md). We wrote this data ourselves, so a duplicate means it was corrupted or tampered with. Nothing then tells us which line reflects what the shopper meant, and guessing could silently change quantities or prices. Starting empty is the only safe choice.
 - **API unavailable**: error state with retry; a cached or snapshot catalogue may be served instead (decision recorded in README).
 - **Product no longer exists**: a cart line whose product disappears from the catalogue is flagged and removable.
 - **Corrupted or tampered storage**: discarded safely (see Story 3).

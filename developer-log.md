@@ -5,6 +5,36 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-26 — Cart domain and store (FR-006–FR-012, FR-018)
+
+**What landed**
+
+- `lib/stock.ts` holds `MAX_QTY_PER_LINE = 10` (store policy) and `getLineLimit()`. `lib/inventory.ts` holds `InventoryProvider` and `simulatedInventory` (deterministic, 3–20, labelled SIMULATED). They stay separate: `LineLimit.reason` says which rule capped a line.
+- `cart/domain` (pure): `addItem`, `increment`, `decrement`, `setQuantity`, `removeLine`, `clampToLimits`, `reconcileWithCatalogue`, `migrateCart`, and selectors (`lineTotalCents`, `totalQuantity`, `subtotalCents`, `lineQuantity`). Max quantity is always an argument.
+- `cart/store`: `createCartStore()` (Zustand 5 + `persist`), `cart-storage.ts` (trust boundary), `persisted-cart-schema.ts` (Zod v1), and `connectCartPersistence()` (rehydrate + `storage` listener).
+- `lib/image-url.ts`: the `https://fakestoreapi.com` image rule, now shared by the API schema and the saved-cart schema rather than copied.
+- `docs/adr-001-state-management.md`, and the spec's edge-case entry for duplicate ids now covers both rules.
+
+**Decisions**
+
+- *Duplicate ids in a saved cart invalidate the whole payload* (user decision, following persisted-cart.md). The catalogue keeps "first wins". The reasoning is recorded in the spec.
+- *Storage returns an empty cart, never `null`.* Reading zustand's `persist` source showed that `null` from `getItem` leaves the current state in place. A cart cleared or corrupted in another tab would then survive in this one. R6's wording said `null`.
+- *Write-skipping in the storage.* `persist` calls `setItem` on every `setState`, including the drawer and announcements, and when `hydrated` is set. The storage skips a write when the serialised cart equals what's stored, or when the cart is empty and there's no key. Serialisation uses a fixed key order so equal carts produce equal strings. Result: exactly one write per cart change, and rehydrating never echoes back to other tabs.
+- *Actions read `get()` at call time*, not the functional `set(state => …)` form R6 describes. zustand updates synchronously, so the guarantee is the same: rapid actions each apply to the previous result. It also lets no-op outcomes skip `set` entirely: no re-render, no write.
+- *`migrateCart` returns the current-shape payload, still unvalidated*, and the store validates it. That keeps the Zod persistence schema in `store/` (per the plan) and every version on the same validation path. data-model §6 says `migrateCart` returns a validated Cart.
+- *`setQuantity` accepts `string | number`.* With numbers only, `Number('')` is 0, which would clamp to 1 instead of being rejected, as data-model says empty input should be.
+- *`reconcileWithCatalogue` also returns the updated cart* (data-model lists only `priceChanges` and `missingIds`).
+- *Tests needing browser APIs but not React are named `*.dom.test.ts`* and run in the jsdom project.
+
+**Verified by mutation**: `getItem` returning `null`, no write-skipping, duplicates allowed, eager hydration, no re-clamp after hydration, ignoring `localStorage.clear()`, and keeping an invalid payload in storage. Each made at least one test fail.
+
+**Not done yet**
+
+- Components: `CartHydrator` (calls `connectCartPersistence` on mount), `CatalogueSync` (calls `reconcile` only when `source === 'live'`), `CartAnnouncer`, `AddToCartControl`, `CartButton`, `CartDrawer`, `CartLineItem`, announcement copy.
+- Quantities lowered by the post-hydration re-clamp aren't announced. The store applies the change; whether to tell the shopper is a UI decision for the components task.
+
+---
+
 ## 2026-10-26 — Product listing (FR-001 to FR-005)
 
 **What landed**
