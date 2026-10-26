@@ -21,27 +21,36 @@ test('axe: no violations with the cart drawer open', async ({ page }) => {
   expect(results.violations).toEqual([]);
 });
 
-test('CSP: no violations reported while browsing and using the cart', async ({ page }) => {
+test('CSP: headers are sent and nothing is blocked while browsing and using the cart', async ({ page }) => {
   const violations: string[] = [];
   page.on('console', (message) => {
     if (/Content Security Policy/i.test(message.text())) violations.push(message.text());
   });
   await page.addInitScript(() => {
     document.addEventListener('securitypolicyviolation', (event) => {
-      console.error(`Content Security Policy violation: ${event.violatedDirective} ${event.blockedURI}`);
+      console.error(`Content Security Policy violation: ${event.effectiveDirective} ${event.blockedURI}`);
     });
   });
 
   const response = await page.goto('/');
-  test.skip(
-    !response?.headers()['content-security-policy'],
-    'No Content-Security-Policy header yet; this test enforces itself once the security headers land (research R10).',
-  );
+  const headers = response?.headers() ?? {};
+  const csp = headers['content-security-policy'] ?? '';
+  expect(csp).toContain("default-src 'self'");
+  expect(csp).toContain("object-src 'none'");
+  expect(csp).toContain("frame-ancestors 'none'");
+  expect(csp).not.toContain('unsafe-eval'); // dev only
+  expect(headers['x-content-type-options']).toBe('nosniff');
+  expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+  expect(headers['permissions-policy']).toContain('camera=()');
 
+  // Hydration, images, the cart, the drawer, and (after reload) the lazily loaded saved-cart validation.
   await expect(cartButton(page)).toHaveAccessibleName(/^Cart, \d+ items?$/);
   await page.getByRole('button', { name: `Add ${BACKPACK.title} to cart` }).click();
   await cartButton(page).click();
   await expect(cartDialog(page)).toBeVisible();
+  await page.reload();
+  await expect(cartButton(page)).toHaveAccessibleName('Cart, 1 item');
+  await expect(page.getByRole('article').first().getByRole('img')).toHaveJSProperty('complete', true);
 
   expect(violations).toEqual([]);
 });
