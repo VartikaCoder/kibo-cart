@@ -36,5 +36,5 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 - `getCatalogue()` is typechecked and builds, but no route calls it yet. Jest can't run `'use cache'`, so it is excluded from coverage. It gets exercised once `page.tsx` uses it (and in E2E).
 - `CATALOGUE_SOURCE=fixture | fixture-large | fixture-broken` (contract) is not implemented. `'fixture'` was left out of `CatalogueSource` until it exists.
-- No `server-only` guard on `fetch-catalogue.ts`; the package isn't installed. Worth adding when the page wiring lands.
+- ~~No `server-only` guard~~ Done: `fetch-catalogue.ts` imports `server-only`, so a Client Component that pulls it in fails the build. Jest maps the package to its own `empty.js`, because the real entry throws outside the `react-server` export condition.
 - Duplicate product ids from the API are not handled. The spec doesn't cover this; it needs a decision before the cart keys lines by id.

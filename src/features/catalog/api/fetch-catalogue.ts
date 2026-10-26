@@ -1,3 +1,4 @@
+import 'server-only';
 import { devWarn } from '@/lib/dev-log';
 import { ApiProductSchema } from '../schemas/api-product';
 import type { Catalogue, Product, SourceFailure } from '../types';

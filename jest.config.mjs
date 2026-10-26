@@ -7,7 +7,11 @@ const config = {
   // Node env only for now (domain, lib, schemas, catalogue fetch via MSW). A jsdom project is added with the first component test.
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/src/test/setup-node.ts'],
-  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    // The real guard throws outside the `react-server` export condition, which Jest doesn't use.
+    '^server-only$': '<rootDir>/node_modules/server-only/empty.js',
+  },
   testPathIgnorePatterns: ['/node_modules/', '/.next/', '/e2e/'],
   coverageProvider: 'v8',
   collectCoverageFrom: [
