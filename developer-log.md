@@ -5,6 +5,16 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-27 — CI workflow
+
+`.github/workflows/ci.yml` runs on every push and PR, as two parallel jobs, and cancels superseded runs on the same ref.
+- **`check`**: `npm ci` → lint → typecheck → `test:cov` (enforces coverage thresholds) → build.
+- **`e2e`**: `npm ci` → `npm run e2e:install` → `npm run e2e`. It uploads the Playwright report and traces unless the run was cancelled.
+
+Caching: npm via `setup-node` (keyed on the lockfile), and Playwright browsers in `~/.cache/ms-playwright`, keyed on the installed Playwright version so an upgrade re-downloads. `e2e:install` always runs: on a cache hit it skips the download but still installs the OS packages, which live outside the cache. Node comes from `.nvmrc` (24, as local). Checked locally: the workflow parses, every script it calls exists, and `CI=true npm run e2e` passes with the CI settings (1 worker, retries, GitHub annotations). Not yet run on GitHub.
+
+---
+
 ## 2026-10-27 — Security: CSP, headers, audit
 
 **What landed**: static CSP plus `X-Content-Type-Options`, `Referrer-Policy`, and `Permissions-Policy` for every route; the CSP E2E test now enforces; `react/no-danger` is a lint error; `docs/security-notes.md`.
