@@ -2,7 +2,8 @@ import type { PersistStorage, StorageValue } from 'zustand/middleware';
 import { devWarn } from '@/lib/dev-log';
 import { CART_VERSION, migrateCart } from '../domain/migrate';
 import type { CartLine } from '../domain/types';
-import { type PersistedCart, PersistedCartSchema } from './persisted-cart-schema';
+// Type only: the schema itself (and Zod) is loaded on demand, when a saved cart is actually read.
+import type { PersistedCart } from './persisted-cart-schema';
 
 export const CART_STORAGE_KEY = 'kibo-cart';
 
@@ -10,7 +11,9 @@ type BrowserStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 /**
  * The zustand `persist` storage for the cart. It is the trust boundary for saved data:
- * - Read: parse → migrate → validate. Any failure removes the key and yields an empty cart, never `null`
+ * - Read: parse → migrate → validate. The schema, and Zod with it, is imported on demand here, so it isn't in
+ *   the page's initial JavaScript (docs/performance-notes.md); reading already happens after mount.
+ *   Any failure removes the key and yields an empty cart, never `null`
  *   (with `null`, zustand would keep the current lines, so a cart cleared in another tab would survive here).
  * - Write: skipped when the stored cart wouldn't change. zustand writes on every `setState`, including
  *   UI-only state (drawer, announcements); skipping keeps it to one write per cart change, and means
@@ -36,10 +39,10 @@ export function createCartStorage(getStorage: () => BrowserStorage | undefined):
   }
 
   return {
-    getItem(name) {
+    async getItem(name) {
       const raw = read(name);
       if (raw === null) return emptyCart();
-      const lines = parseSavedCart(raw);
+      const lines = await parseSavedCart(raw);
       if (lines === null) {
         remove(name);
         return emptyCart();
@@ -63,7 +66,7 @@ export function createCartStorage(getStorage: () => BrowserStorage | undefined):
   };
 }
 
-function parseSavedCart(raw: string): CartLine[] | null {
+async function parseSavedCart(raw: string): Promise<CartLine[] | null> {
   let envelope: unknown;
   try {
     envelope = JSON.parse(raw);
@@ -81,6 +84,7 @@ function parseSavedCart(raw: string): CartLine[] | null {
     devWarn(`[cart] discarded saved cart: unknown version ${String(envelope.version)}`);
     return null;
   }
+  const { PersistedCartSchema } = await import('./persisted-cart-schema');
   const parsed = PersistedCartSchema.safeParse(migrated);
   if (!parsed.success) {
     devWarn('[cart] discarded saved cart: invalid', parsed.error.issues);
@@ -89,15 +93,19 @@ function parseSavedCart(raw: string): CartLine[] | null {
   return parsed.data.lines;
 }
 
-/** The stored value re-serialised in canonical form, so equal carts compare equal whatever their key order. */
+/**
+ * The stored value re-serialised in canonical form, so equal carts compare equal whatever their key order.
+ * Only decides whether to skip a write, so it needs no validation: anything malformed compares unequal
+ * (or throws → null) and is simply overwritten. Validation happens on read.
+ */
 function canonical(raw: string): string | null {
   try {
     const envelope: unknown = JSON.parse(raw);
     if (typeof envelope !== 'object' || envelope === null || !('version' in envelope) || envelope.version !== CART_VERSION) {
       return null;
     }
-    const lines = PersistedCartSchema.safeParse((envelope as { state?: unknown }).state);
-    return lines.success ? serialise(lines.data.lines) : null;
+    const lines = (envelope as { state?: { lines?: unknown } }).state?.lines;
+    return Array.isArray(lines) ? serialise(lines as CartLine[]) : null;
   } catch {
     return null;
   }
