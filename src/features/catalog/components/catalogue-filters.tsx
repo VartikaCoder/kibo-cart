@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { type ChangeEvent, type FormEvent, useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useDebouncedTimer } from '@/lib/use-debounced-timer';
-import { type CatalogueQuery, parseCatalogueQuery } from '../schemas/catalogue-query';
+import { type CatalogueQuery, normaliseFilters } from '../query/catalogue-query';
 import { catalogueHref, serializeCatalogueQuery } from '../query/serialize-catalogue-query';
 import { SORT_LABELS } from './sort-options';
 
@@ -40,12 +40,12 @@ export function CatalogueFilters({ query, categories }: CatalogueFiltersProps) {
     setFields((current) => ({
       category: query.category,
       sort: query.sort,
-      q: normalise(current, categories).q === query.q ? current.q : query.q,
+      q: normaliseFilters(current, categories).q === query.q ? current.q : query.q,
     }));
   }
 
   function navigate(next: Fields, mode: 'push' | 'replace') {
-    const target = normalise(next, categories);
+    const target = normaliseFilters(next, categories);
     const unchanged = target.category === query.category && target.q === query.q && target.sort === query.sort;
     if (!unchanged) router[mode](catalogueHref(target), { scroll: false });
   }
@@ -120,7 +120,7 @@ export function CatalogueFilters({ query, categories }: CatalogueFiltersProps) {
           id={`${id}-sort`}
           name="sort"
           value={fields.sort}
-          onChange={(e) => onSelectChange({ sort: normalise({ ...fields, sort: e.target.value }, categories).sort })}
+          onChange={(e) => onSelectChange({ sort: normaliseFilters({ ...fields, sort: e.target.value }, categories).sort })}
           className={fieldClass}
         >
           {Object.entries(SORT_LABELS).map(([value, label]) => (
@@ -135,9 +135,4 @@ export function CatalogueFilters({ query, categories }: CatalogueFiltersProps) {
       </noscript>
     </form>
   );
-}
-
-/** Runs form values through the same parser as the URL, so trimming/truncation/validation match. */
-function normalise(fields: { category: string | null; q: string; sort: string }, categories: string[]): CatalogueQuery {
-  return parseCatalogueQuery({ category: fields.category ?? undefined, q: fields.q, sort: fields.sort }, categories);
 }

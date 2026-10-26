@@ -9,6 +9,6 @@ export { ProductListing } from './components/product-listing';
 export { applyCatalogueQuery, PAGE_SIZE } from './query/apply-catalogue-query';
 export type { CatalogueResult } from './query/apply-catalogue-query';
 export { parseCatalogueQuery } from './schemas/catalogue-query';
-export type { CatalogueQuery, SortKey } from './schemas/catalogue-query';
+export type { CatalogueQuery, SortKey } from './query/catalogue-query';
 export type { Catalogue, CatalogueSource, Product, SourceFailure } from './types';
 export type { SnapshotAge } from './components/snapshot-notice';

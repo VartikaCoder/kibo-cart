@@ -1,10 +1,5 @@
-import {
-  type CatalogueQuery,
-  DEFAULT_QUERY,
-  parseCatalogueQuery,
-  SORT_KEYS,
-  searchParamsToRecord,
-} from '../schemas/catalogue-query';
+import { type CatalogueQuery, DEFAULT_QUERY, SORT_KEYS, searchParamsToRecord } from './catalogue-query';
+import { parseCatalogueQuery } from '../schemas/catalogue-query';
 import { catalogueHref, serializeCatalogueQuery, withQuery } from './serialize-catalogue-query';
 
 const categories = ['electronics', 'jewelery', "men's clothing", "women's clothing"];

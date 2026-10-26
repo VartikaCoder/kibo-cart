@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { buttonClassName } from '@/components/ui/button';
-import type { CatalogueQuery } from '../schemas/catalogue-query';
+import type { CatalogueQuery } from '../query/catalogue-query';
 
 export function EmptyResults({ query }: { query: CatalogueQuery }) {
   return (

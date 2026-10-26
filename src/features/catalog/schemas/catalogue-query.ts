@@ -1,44 +1,30 @@
 import { z } from 'zod';
+import {
+  type CatalogueQuery,
+  DEFAULT_QUERY,
+  normaliseSearch,
+  type RawSearchParams,
+  SORT_KEYS,
+} from '../query/catalogue-query';
 
-/** Listing view state, parsed from the URL (contracts/url-search-params.md). Never throws. */
-
-export const SORT_KEYS = [
-  'featured',
-  'price-asc',
-  'price-desc',
-  'rating-asc',
-  'rating-desc',
-  'name-asc',
-  'name-desc',
-] as const;
-export type SortKey = (typeof SORT_KEYS)[number];
-
-export const MAX_SEARCH_LENGTH = 100;
-
-export interface CatalogueQuery {
-  category: string | null;
-  q: string;
-  sort: SortKey;
-  page: number;
-}
-
-export const DEFAULT_QUERY: CatalogueQuery = { category: null, q: '', sort: 'featured', page: 1 };
-
-export type RawSearchParams = Record<string, string | string[] | undefined>;
+/**
+ * The URL trust boundary for the listing (contracts/url-search-params.md): untyped query params → a valid
+ * `CatalogueQuery`. Never throws. Server-side only in practice: Client Components use the Zod-free rules in
+ * `query/catalogue-query.ts`, which this schema applies too.
+ */
 
 // `.catch()` is right here, unlike the API schema: a bad URL param means "use the default", not "reject".
 const SearchSchema = z
   .string()
-  .catch('')
-  // Count code points, not UTF-16 units, so truncation never splits an emoji.
-  .transform((q) => Array.from(q.trim()).slice(0, MAX_SEARCH_LENGTH).join('').trim());
-const SortSchema = z.enum(SORT_KEYS).catch('featured');
+  .catch(DEFAULT_QUERY.q)
+  .transform(normaliseSearch);
+const SortSchema = z.enum(SORT_KEYS).catch(DEFAULT_QUERY.sort);
 const PageSchema = z
   .string()
   .regex(/^\d+$/)
   .transform(Number)
   .pipe(z.number().int().min(1))
-  .catch(1);
+  .catch(DEFAULT_QUERY.page);
 
 export function parseCatalogueQuery(params: RawSearchParams, categories: readonly string[]): CatalogueQuery {
   const category = first(params.category);
@@ -55,10 +41,3 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export function searchParamsToRecord(params: URLSearchParams): RawSearchParams {
-  const record: Record<string, string[]> = {};
-  params.forEach((value, key) => {
-    (record[key] ??= []).push(value);
-  });
-  return record;
-}

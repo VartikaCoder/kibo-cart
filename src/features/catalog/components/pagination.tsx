@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { CatalogueQuery } from '../schemas/catalogue-query';
+import type { CatalogueQuery } from '../query/catalogue-query';
 import { pageWindow } from '../query/page-window';
 import { catalogueHref, withQuery } from '../query/serialize-catalogue-query';
 

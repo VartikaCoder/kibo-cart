@@ -1,6 +1,6 @@
 import type { CatalogueSource } from '../types';
 import { type CatalogueResult, PAGE_SIZE } from '../query/apply-catalogue-query';
-import type { CatalogueQuery } from '../schemas/catalogue-query';
+import type { CatalogueQuery } from '../query/catalogue-query';
 import { CatalogueFilters } from './catalogue-filters';
 import { EmptyResults } from './empty-results';
 import { Pagination } from './pagination';

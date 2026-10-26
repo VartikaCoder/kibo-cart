@@ -1,4 +1,4 @@
-import type { SortKey } from '../schemas/catalogue-query';
+import type { SortKey } from '../query/catalogue-query';
 
 export const SORT_LABELS: Record<SortKey, string> = {
   featured: 'Featured',

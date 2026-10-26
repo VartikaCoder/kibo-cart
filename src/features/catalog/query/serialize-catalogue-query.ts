@@ -1,4 +1,4 @@
-import { type CatalogueQuery, DEFAULT_QUERY } from '../schemas/catalogue-query';
+import { type CatalogueQuery, DEFAULT_QUERY } from './catalogue-query';
 
 /** Canonical order category, q, sort, page; defaults omitted. Always built with URLSearchParams. */
 export function serializeCatalogueQuery(query: CatalogueQuery): string {

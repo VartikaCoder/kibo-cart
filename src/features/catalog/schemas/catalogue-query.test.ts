@@ -1,4 +1,5 @@
-import { DEFAULT_QUERY, parseCatalogueQuery, searchParamsToRecord } from './catalogue-query';
+import { DEFAULT_QUERY, normaliseFilters, SORT_KEYS, searchParamsToRecord } from '../query/catalogue-query';
+import { parseCatalogueQuery } from './catalogue-query';
 
 const categories = ['electronics', 'jewelery', "men's clothing"];
 
@@ -55,5 +56,25 @@ describe('searchParamsToRecord', () => {
   it('keeps repeated keys so the parser can take the first', () => {
     const record = searchParamsToRecord(new URLSearchParams('sort=name-asc&sort=price-asc&q=a'));
     expect(parseCatalogueQuery(record, categories)).toMatchObject({ sort: 'name-asc', q: 'a' });
+  });
+});
+
+describe('normaliseFilters (client, Zod-free) agrees with parseCatalogueQuery (server, Zod)', () => {
+  it('produces the same query for 500 generated form states', () => {
+    let seed = 7;
+    const random = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+    const pick = <T,>(items: readonly T[]) => items[Math.floor(random() * items.length)];
+    const texts = ['', '  ', ' bag ', 'a'.repeat(120), '🎒'.repeat(110), '50% & <b>', 'Ring'];
+
+    for (let i = 0; i < 500; i++) {
+      const fields = {
+        category: pick([null, 'jewelery', 'toys', 'Electronics', "men's clothing"]),
+        q: pick(texts),
+        sort: pick([...SORT_KEYS, 'cheapest', '']),
+      };
+      expect(normaliseFilters(fields, categories)).toEqual(
+        parseCatalogueQuery({ category: fields.category ?? undefined, q: fields.q, sort: fields.sort }, categories),
+      );
+    }
   });
 });

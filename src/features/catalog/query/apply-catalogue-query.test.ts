@@ -1,6 +1,6 @@
 import type { Cents } from '@/lib/money';
 import { makeProduct, makeProducts } from '@/test/fixtures/products';
-import { type CatalogueQuery, DEFAULT_QUERY } from '../schemas/catalogue-query';
+import { type CatalogueQuery, DEFAULT_QUERY } from '../query/catalogue-query';
 import { applyCatalogueQuery, PAGE_SIZE } from './apply-catalogue-query';
 
 const query = (patch: Partial<CatalogueQuery> = {}): CatalogueQuery => ({ ...DEFAULT_QUERY, ...patch });

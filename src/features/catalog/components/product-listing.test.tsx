@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { makeProducts } from '@/test/fixtures/products';
 import { applyCatalogueQuery } from '../query/apply-catalogue-query';
-import { type CatalogueQuery, DEFAULT_QUERY } from '../schemas/catalogue-query';
+import { type CatalogueQuery, DEFAULT_QUERY } from '../query/catalogue-query';
 import type { CatalogueSource } from '../types';
 import { ProductListing } from './product-listing';
 

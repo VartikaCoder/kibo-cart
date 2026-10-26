@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { router } from '@/test/next-navigation';
-import { type CatalogueQuery, DEFAULT_QUERY } from '../schemas/catalogue-query';
+import { type CatalogueQuery, DEFAULT_QUERY } from '../query/catalogue-query';
 import { CatalogueFilters, SEARCH_DEBOUNCE_MS } from './catalogue-filters';
 
 jest.mock('next/navigation', () => jest.requireActual('@/test/next-navigation').nextNavigationMock);

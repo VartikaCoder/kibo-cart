@@ -1,4 +1,4 @@
-import type { CatalogueQuery, SortKey } from '../schemas/catalogue-query';
+import type { CatalogueQuery, SortKey } from './catalogue-query';
 import type { Product } from '../types';
 
 export const PAGE_SIZE = 12;
