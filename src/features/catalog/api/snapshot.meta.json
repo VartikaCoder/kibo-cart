@@ -1,0 +1,8 @@
+{
+  "source": "https://fakestoreapi.com/products",
+  "capturedAt": "2026-10-26T14:20:15Z",
+  "httpStatus": 200,
+  "itemCount": 20,
+  "sha256": "8a244bc1211c3cd0a3ee03e8e72b259c2dfc6a2d8c1d355169c67eb2caf4c2e7",
+  "note": "Raw response body, saved byte-for-byte with curl. Do not hand-edit; re-capture instead and update this file."
+}
