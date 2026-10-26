@@ -16,6 +16,6 @@ export type {
   QuantityNotice,
   QuantityReduction,
 } from './store/cart-store';
-export { quantityReducedNote } from './components/announce-copy';
+export { lineLimitLabel, quantityReducedNote } from './components/announce-copy';
 export { CartAnnouncer } from './components/cart-announcer';
 export { CartHydrator } from './components/cart-hydrator';

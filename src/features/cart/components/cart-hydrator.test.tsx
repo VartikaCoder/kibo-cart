@@ -40,7 +40,7 @@ describe('CartHydrator + CartAnnouncer', () => {
     renderShell();
     await act(async () => {});
 
-    expect(screen.getByRole('status')).toHaveTextContent(`Backpack reduced from 8 to ${limit} — limited availability.`);
+    expect(screen.getByRole('status')).toHaveTextContent(`Backpack reduced from 8 to ${limit} — only ${limit} available (demo inventory).`);
     expect(useCartStore.getState().lines[0].quantity).toBe(limit);
   });
 
