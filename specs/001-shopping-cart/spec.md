@@ -99,6 +99,8 @@ A shopper sees current prices even if a price changed after they added the item.
 - **Client-side tampering**: the persisted cart lives in localStorage and can be edited by the user. Validation prevents crashes, but it cannot establish trust — a real checkout must re-price and re-check availability server-side. Documented in security notes.
 - **Search input**: treated as plain text; special characters do not break filtering or rendering.
 
+---
+
 
 ## Requirements *(mandatory)*
 
