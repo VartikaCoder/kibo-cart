@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
+import { InfoIcon } from '@/components/ui/icons';
 
 /**
  * How old the snapshot is, already formatted on the server. Passing strings (not a Date to format here)
@@ -38,12 +39,14 @@ export function SnapshotNotice({ retryAction, age = null }: SnapshotNoticeProps)
   }
 
   return (
+    // Informational, not a warning: neutral tones and a slim single row; the listing below stays usable.
     <div
       role="status"
-      className="flex flex-col gap-3 rounded-lg border border-notice-border bg-notice p-4 text-sm text-notice-ink sm:flex-row sm:items-center sm:justify-between"
+      className="flex items-center gap-2 rounded-md border border-info-border bg-info py-1 pl-3 pr-1 text-sm text-info-ink"
     >
-      <p>
-        <strong className="font-semibold">
+      <InfoIcon className="size-4 shrink-0 text-info-muted" />
+      <p className="min-w-0 flex-1 py-1.5">
+        <span>
           Showing a saved copy of the catalogue
           {age && (
             <>
@@ -55,11 +58,11 @@ export function SnapshotNotice({ retryAction, age = null }: SnapshotNoticeProps)
             </>
           )}
           .
-        </strong>{' '}
-        Prices may be out of date.
+        </span>{' '}
+        <span className="text-info-muted">Prices may be out of date.</span>
       </p>
       {/* aria-disabled rather than disabled, so focus isn't dropped while retrying. */}
-      <Button variant="secondary" onClick={retry} aria-disabled={isPending}>
+      <Button variant="ghost" size="sm" onClick={retry} aria-disabled={isPending} className="shrink-0">
         {isPending ? 'Retrying…' : 'Retry'}
       </Button>
     </div>

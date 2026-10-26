@@ -17,6 +17,8 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 - *UTC in the title, labelled as UTC.* The server's time zone isn't the reader's. A test runs the formatter under `TZ=Asia/Tokyo` and gets the same result.
 - *It doesn't tick.* The age is correct when the page renders and is recomputed on any navigation or Retry. A live-updating clock would need client-side time, which reintroduces the hydration problem this avoids.
 
+**Softened (user request, same day)**: the notice is now informational rather than a warning. Changes: its own neutral `--info*` tokens instead of amber, a single slim row (46 px on desktop), an info icon, the second sentence in a muted tone, and Retry as a compact text button (36 px tall, above the 24 px minimum target). Measured contrast: light ink 9.6:1, muted 7.1:1, Retry 6.2:1; dark 11.7 / 6.7 / 9.6. Still `role="status"`. Amber `--notice*` stays for the per-line cart notes. `Button` gained `size="sm"` and a `ghost` variant.
+
 **Verified in the browser**: a dev server with the API forced down (`dev-api-down` in `.claude/launch.json`: a dead `HTTPS_PROXY` with `NODE_USE_ENV_PROXY=1`). The server HTML and the hydrated DOM both read "…from 3 hours ago." with the same `title` and `dateTime`. No hydration warnings, no console errors.
 
 ---

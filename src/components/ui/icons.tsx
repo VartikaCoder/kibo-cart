@@ -52,3 +52,10 @@ export const CartIcon = (p: IconProps) => (
     <circle cx="18" cy="20" r="1" />
   </Icon>
 );
+
+export const InfoIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 8h.01" />
+  </Icon>
+);
