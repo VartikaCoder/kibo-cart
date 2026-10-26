@@ -5,6 +5,40 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-26 — Product listing (FR-001 to FR-005)
+
+**What landed**
+
+- `app/page.tsx` awaits `getCatalogue()` and `searchParams`, then runs `parseCatalogueQuery` → `applyCatalogueQuery`. Only the current page of products reaches the client. `loading.tsx` shows a skeleton the same size as the real cards; `error.tsx` shows the error state with `retry()`.
+- Pure query layer: `schemas/catalogue-query.ts` (parse, never throws), `query/apply-catalogue-query.ts` (filter → search → sort → paginate, ties broken by id), `query/serialize-catalogue-query.ts` (canonical URL, `withQuery` resets the page), `query/page-window.ts`.
+- Components: `ProductCard`, `ProductGrid`, `ProductGridSkeleton`, `EmptyResults`, `Pagination`, `ResultSummary`, `CatalogueFilters` (client), `SnapshotNotice` (client), `ProductListing` (composition).
+- `components/ui`: `Button` (+ `buttonClassName` for button-styled links), `Badge`, `Rating`, `Skeleton`, `VisuallyHidden`.
+- Design tokens in `globals.css`, light and dark, with one global `:focus-visible` outline. `next.config` `images.remotePatterns` allows only `https://fakestoreapi.com/img/**`.
+
+**Decisions**
+
+- *Testing split (user decision).* Jest can't render the async page, so behaviour is tested at two levels. Pure functions cover filter, sort, pagination and the URL. RTL renders the synchronous components with props. The data path keeps its MSW tests. Page-level checks wait for Playwright. A deterministic URL round-trip test runs 1,000 generated queries with a seeded PRNG; it avoids adding fast-check.
+- *Category and sort are controlled inputs in a client component*, not server-rendered selects. An uncontrolled `defaultValue` doesn't follow the URL on Back, and remounting with a `key` drops keyboard focus on every change. State adopts the URL during render when it changes. The one exception is in-progress search text the URL already reflects: "gold " stays "gold " even though the URL says `q=gold`.
+- *One owner for the pending search.* Choosing a category cancels the pending debounced search and pushes a URL that includes the typed text. Otherwise the stale debounce would fire afterwards and replace the new URL with old values.
+- *`<form role="search">` instead of `<search>`.* jsdom doesn't recognise `<search>`: React logs an error and Testing Library can't find the landmark. Older browsers and assistive tech don't map it either. This deviates from the wording in contracts/ui-components.md.
+- *`loading="eager"` + `fetchPriority="high"` for the first row*, not `priority`. Next 16 deprecated `priority`.
+- *The filter controls are not in the static shell* (research R1 said they would be). They need the catalogue's categories and the URL's values, so they render inside the `loading.tsx` boundary; the shell is the header and the heading. The build reports `/` as a partial prerender.
+- *`error.tsx` imports two components by deep path.* The feature index also exports server-only code, which a Client Component can't import. A client-safe entry point for the feature could fix this.
+
+**Verified**
+
+- Mutation checks: removing the debounce, using push for search, not cancelling the debounce on select, not syncing from the URL, not resetting the page, not clamping it, case-sensitive search. Each made at least one test fail.
+- Real browser (dev server, live API): debounced search updates the URL with no new history entry and keeps focus. Category and sort add history entries, and Back restores both the URL and the controls. `?page=99&sort=bogus&category=toys` falls back to defaults and clamps to the last page. `?q=<script>…` renders as text. Keyboard focus shows the 2px focus-token outline.
+- **Not yet in a real browser:** the snapshot notice and the error page. Both need the `CATALOGUE_SOURCE` fixture modes. RTL covers them.
+
+**Surprises**
+
+- The browser pane read "Loading products…" after a full load, even though the content had streamed in hidden. The pane itself was hidden, and the browser held back the reveal until a paint. It wasn't an app bug, but it's a trap when checking streaming in the browser pane.
+- With Jest `projects`, coverage counted test files as source (47% overall) until `*.test.*` was excluded explicitly.
+- `jest.mock` factories can't use `require` under the lint config. `jest.requireActual` works and is the documented way to reach a real module from a factory.
+
+---
+
 ## 2026-10-26 — Duplicate product ids
 
 **Decision** (user): keep the first occurrence of an id, drop later ones, and warn in dev. Cart lines are keyed by product id, so two products sharing one would collide in the cart.
@@ -14,6 +48,32 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 **Test-first**: the duplicate test failed before the change (both items came through) and passes after.
 
 ---
+
+## 2026-10-26 — Human Audit
+
+### Unanchored hostname check on product image URLs (security)
+
+The product schema restricts image URLs to fakestoreapi.com so that a spoofed
+or compromised API response cannot point next/image at an arbitrary host.
+
+Before:
+    image: z.string().url().regex(/https:\/\/fakestoreapi\.com\//)
+
+The problem: a regex without anchors matches anywhere in the string, so
+https://fakestoreapi.com.evil.example/x.jpg passes validation. The attacker
+controls the real host; our "allowlist" is actually a substring search.
+
+After:
+4: * Mirrors one item of GET https://fakestoreapi.com/products, and nothing more (data-model §1).
+15:  image: z.url({ protocol: /^https$/, hostname: /^fakestoreapi\.com$/ }),
+
+Verified by running the unanchored pattern against the look-alike host and
+confirming it was accepted, then confirming the anchored version rejects it.
+A test for the look-alike host is now in the suite.
+
+This is the kind of bug that survives code review: the intent is readable and
+every happy-path test passes. It only surfaces if you ask what else the
+pattern matches.
 
 ## 2026-10-26 — Catalogue data layer (FR-010, FR-013, FR-014)
 

@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Defined once here; components use the generated utilities (bg-surface, text-ink-muted, …).
+ * Contrast (WCAG AA): ink and ink-muted are ≥ 4.5:1 on canvas and surface in both schemes;
+ * focus is ≥ 3:1 against both.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --canvas: #fafafa;
+  --surface: #ffffff;
+  --ink: #18181b;
+  --ink-muted: #52525b;
+  --border: #e4e4e7;
+  --accent: #1d4ed8;
+  --accent-ink: #ffffff;
+  --accent-hover: #1e40af;
+  --focus: #1d4ed8;
+  --notice: #fef3c7;
+  --notice-ink: #78350f;
+  --notice-border: #f59e0b;
+  --star: #b45309;
+  --skeleton: #e4e4e7;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --canvas: #0a0a0a;
+    --surface: #18181b;
+    --ink: #f4f4f5;
+    --ink-muted: #a1a1aa;
+    --border: #3f3f46;
+    --accent: #93c5fd;
+    --accent-ink: #0a0a0a;
+    --accent-hover: #bfdbfe;
+    --focus: #93c5fd;
+    --notice: #422006;
+    --notice-ink: #fde68a;
+    --notice-border: #b45309;
+    --star: #fbbf24;
+    --skeleton: #27272a;
   }
 }
 
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-hover: var(--accent-hover);
+  --color-focus: var(--focus);
+  --color-notice: var(--notice);
+  --color-notice-ink: var(--notice-ink);
+  --color-notice-border: var(--notice-border);
+  --color-star: var(--star);
+  --color-skeleton: var(--skeleton);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+/* One visible focus style for every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
