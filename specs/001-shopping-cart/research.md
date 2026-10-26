@@ -118,7 +118,8 @@ in the API→domain mapper.
   rehydrates, then calls the store's `completeHydration()`. It lowers any saved quantity above the line's current
   limit (via the pure `clampToLimits`), records a per-line `quantityNotices` entry, sets `hydrated: true`, and
   returns the reductions. `CartHydrator` announces them through the live region, e.g. "Backpack reduced from 8 to
-  4 — limited availability.", and the line shows a dismissible note, "Reduced to 4 — limited availability".
+  4 — only 4 available (demo inventory).", and the line shows a dismissible note, "Reduced to 4 — only 4 available
+  (demo inventory)" (R8 wording).
   There's no dialog: a silent reduction would be a correctness surprise, and a blocking one would be out of
   proportion. Before hydration, count/total UI renders a **neutral placeholder** (badge without a number, totals
   as a skeleton), never `0`, so there is no flash of wrong data (US3-AS4).
@@ -164,6 +165,8 @@ Results:
   hydration mismatch) returning 3–20. The file header says it is simulated. A real API would replace only this adapter.
 - Cart domain functions take `maxQuantity: number` as a parameter.
 - UI copy: `reason: 'policy'` → "Limit 10 per order". `reason: 'availability'` → "Only N available (demo inventory)".
+  **Every** availability message carries "(demo inventory)", including the reduced-on-load note and announcement
+  ("Reduced to N — only N available (demo inventory)"). Policy messages never do, because the policy is real.
   The README documents that availability is simulated.
 
 **Rationale**: Spec clarifications and CLAUDE.md "Stock / inventory". A 3–20 range makes sure some items cap below 10, so both paths are exercised.

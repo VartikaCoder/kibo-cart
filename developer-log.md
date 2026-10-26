@@ -20,6 +20,8 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 **Verified in the browser** (dev server): with a saved cart of 8 × product 4 (simulated availability 5), the live region read "… reduced from 8 to 5 — limited availability." once, and storage held 5. Reloading was silent. No console errors.
 
+**Wording revised** (user decision, same day): "limited availability" didn't say the stock is simulated. All availability copy now uses R8's wording with the demo qualifier: "Reduced to 4 — only 4 available (demo inventory)", "Only N available (demo inventory)". The policy cap stays "Limit 10 per order", with no qualifier, because it's real. One `DEMO_INVENTORY` constant feeds every availability string, and a test checks that each availability message contains it and no policy message does. The quotes above show the original wording.
+
 **Docs**: R6 and data-model §6 now match the five differences from the previous entry. §8 gains `quantityNotices`, and the copy table gains the reduced-on-load rows.
 
 ---

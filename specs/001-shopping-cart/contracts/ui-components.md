@@ -60,11 +60,16 @@
 | limit-reached, availability | "Only {max} of {title} available (demo inventory)." |
 | clamped | "Quantity for {title} set to {q}." |
 | price reconciliation | "Prices updated for {n} items in your cart." |
-| quantity reduced on load, one line | "{title} reduced from {from} to {to} — limited availability." (or "— limit 10 per order") |
+| quantity reduced on load, one line, availability | "{title} reduced from {from} to {to} — only {to} available (demo inventory)." |
+| quantity reduced on load, one line, policy | "{title} reduced from {from} to {to} — limit 10 per order." |
 | quantity reduced on load, several lines | "Quantities reduced for {n} items in your cart. Each item shows why." |
 
-Per-line note after a reduction on load (dismissible, not a dialog): "Reduced to {to} — limited availability", or
-"Reduced to {to} — limit 10 per order".
+Per-line note after a reduction on load (dismissible, not a dialog): "Reduced to {to} — only {to} available (demo
+inventory)", or "Reduced to {to} — limit 10 per order".
+
+**Limit wording rule** (research R8): availability is simulated, so every availability message says "(demo
+inventory)", e.g. the standalone label "Only {max} available (demo inventory)". The per-line cap is a real store
+policy: "Limit 10 per order", with no qualifier. All of this copy comes from `cart/components/announce-copy.ts`.
 
 ## Visual and states
 
