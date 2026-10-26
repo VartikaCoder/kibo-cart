@@ -3,6 +3,10 @@ import { ImageUrlSchema } from '@/lib/image-url';
 import type { Cents } from '@/lib/money';
 import { MAX_QTY_PER_LINE } from '@/lib/stock';
 
+// This schema runs in the browser. Zod v4 otherwise probes `new Function` to see if it can JIT-compile
+// validators; the CSP blocks eval, so every saved-cart read would report a CSP violation. Same validation.
+z.config({ jitless: true });
+
 /**
  * The saved cart in localStorage, version 1 (contracts/persisted-cart.md). Untrusted: users and extensions
  * can edit it. Any failure invalidates the whole payload; nothing is repaired or defaulted.
