@@ -9,7 +9,7 @@
 | `ProductGrid` | Server | `catalog/components` | `products: Product[]` |
 | `ProductCard` | Server | `catalog/components` | `product: Product`, `priority?: boolean` |
 | `ProductGridSkeleton` | Server | `catalog/components` | `count = 12` (same dimensions as cards) |
-| `CatalogueControls` | Server + client leaf `SearchInput` | `catalog/components` | `query`, `categories` |
+| `CatalogueFilters` | client leaf | `catalog/components` | `query`, `categories` (search, category, and sort in one GET form) |
 | `Pagination` | Server | `catalog/components` | `page`, `totalPages`, `query` (renders `<Link>`s) |
 | `EmptyResults` | Server | `catalog/components` | `query` → "Clear filters" link to `/` |
 | `SnapshotNotice` | client leaf | `catalog/components` | Retry → `refreshCatalogue()` + `router.refresh()` |
@@ -32,10 +32,22 @@
 | Remove | "Remove {title} from cart" | focus → next line's Remove → previous → empty-state message |
 | Cart button | "Cart, {n} items" (after hydration) / "Cart" (before) | `aria-haspopup="dialog"`, `aria-expanded` |
 | Drawer | `dialog`, labelled by heading "Your cart" | `showModal()`, Esc closes, focus restored to the cart button |
-| Search | `searchbox` labelled "Search products", inside `<search>` | debounced 300 ms; result count announced politely |
-| Category / sort | `<select>` with visible `<label>` | inside a GET form; JS enhances to navigate on change |
+| Search | `searchbox` labelled "Search products", inside `<form role="search">` | debounced 300 ms (`router.replace`); result count announced politely |
+| Category / sort | `<select>` with visible `<label>` | controlled inputs in the same GET form; navigate on change (`router.push`); follow the URL on Back |
 | Pagination | `<nav aria-label="Pagination">` | current page `aria-current="page"` |
 | Rating | text "Rated {rate} out of 5 ({count} reviews)" | stars are decorative (`aria-hidden`) |
+
+### Notes on the filter controls (decided 2026-10-26)
+
+- **`<form role="search">`, not `<search>`.** It's the same landmark. jsdom doesn't recognise `<search>`: React
+  logs an error and Testing Library can't find the role. Browsers before 2023, and the assistive tech running on
+  them, don't expose it either. This is the one place the listing uses ARIA where a native element exists.
+- **Category and sort are controlled inputs in a client component**, not server-rendered selects. An uncontrolled
+  `defaultValue` doesn't follow the URL on Back. Remounting with a `key` drops keyboard focus on every change. The
+  component adopts the URL's values during render when the URL changes. The one exception is in-progress search
+  text the URL already reflects after trimming.
+- **Progressive enhancement is kept.** Without JS the form submits as a plain GET to `/` (an Apply button in
+  `<noscript>`). Pagination stays server-rendered `<Link>`s.
 
 ## Announcement copy (polite, single region)
 

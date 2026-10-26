@@ -11,8 +11,15 @@ constitution, CLAUDE.md, or the Next.js 16.4 docs shipped in `node_modules/next/
 ## R1. Next.js 16 rendering model (Cache Components + Partial Prefetching)
 
 **Decision**: Keep the scaffold's `cacheComponents: true` + `partialPrefetching: true`. The catalogue fetch is a
-`'use cache'` function tagged `catalogue`. The listing page reads `searchParams` inside a `<Suspense>` boundary
-whose fallback is a fixed-size skeleton grid; header, layout, and filter chrome form the prerendered static shell.
+`'use cache'` function tagged `catalogue`. The listing page reads `searchParams` inside the `<Suspense>` boundary
+that `app/loading.tsx` provides. Its fallback is the page heading, a placeholder for the filter row, and a skeleton
+grid sized like the real cards. The prerendered static shell is the layout: the header and `<main>`.
+
+*Revised 2026-10-26:* the filter controls were planned as part of the static shell, but they render inside the
+boundary instead. They need the catalogue's category list and the current URL's values, so neither is known when
+the shell is prerendered. A shell copy would either show the wrong selection or need a client-side
+`useSearchParams` round trip. The loading fallback reserves their row, so nothing shifts when they arrive.
+`next build` reports `/` as a partial prerender (◐).
 
 **Rationale**: With Cache Components, data access is dynamic by default and anything reading `searchParams`
 must sit under `<Suspense>`. Passing parsed query values *as arguments* into cached functions keeps results
@@ -167,7 +174,7 @@ Results:
   Non-integers or empty values revert, and out-of-range values clamp, with an announcement.
 - **Focus after removing a line**: next line's Remove button → previous line's → the drawer's empty-state message
   (`tabIndex={-1}`).
-- **Search**: `<search>` landmark + labelled `<input type="search">`. The result count is announced politely and debounced.
+- **Search**: `<form role="search">` landmark + labelled `<input type="search">`. The result count is announced politely and debounced. The `<search>` element was planned, but jsdom and pre-2023 browsers/AT don't expose it (contracts/ui-components.md, "Notes on the filter controls").
 
 **Rationale**: FR-016, FR-017, Constitution IV. Native elements before ARIA.
 
