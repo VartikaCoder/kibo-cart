@@ -66,6 +66,8 @@ A shopper's cart is still there after a reload, and stays consistent when the st
 
 ### User Story 4 — Price integrity (Priority: P3)
 
+> **Status: not implemented** (deliberately scoped out); see the README, [What I'd do with more time](../../README.md#live-price-reconciliation-and-no-longer-available-lines-fr-018).
+
 A shopper sees current prices even if a price changed after they added the item.
 
 **Why this priority**: Correctness matters in commerce, but the data source rarely changes prices.
@@ -91,7 +93,7 @@ A shopper sees current prices even if a price changed after they added the item.
   - *Catalogue (API data)*: the first valid item with an id is kept and later ones are dropped (logged in development). Validation runs first, so an invalid item never claims an id. API data is third-party and partially usable: one bad item shouldn't cost the shopper the rest of the catalogue.
   - *Saved cart (localStorage)*: duplicate ids invalidate the whole payload, and the cart resets to empty (contracts/persisted-cart.md). We wrote this data ourselves, so a duplicate means it was corrupted or tampered with. Nothing then tells us which line reflects what the shopper meant, and guessing could silently change quantities or prices. Starting empty is the only safe choice.
 - **API unavailable**: error state with retry; a cached or snapshot catalogue may be served instead (decision recorded in README).
-- **Product no longer exists**: a cart line whose product disappears from the catalogue is flagged and removable.
+- **Product no longer exists**: a cart line whose product disappears from the catalogue is flagged and removable. **Status: not implemented** (deliberately scoped out); see the README, [What I'd do with more time](../../README.md#live-price-reconciliation-and-no-longer-available-lines-fr-018).
 - **Corrupted or tampered storage**: discarded safely (see Story 3).
 - **Concurrent edits in two tabs**: last write wins. Deliberately not merged (rationale in README).
 - **Floating-point money**: all arithmetic in integer cents.
@@ -147,6 +149,6 @@ A shopper sees current prices even if a price changed after they added the item.
 ## Clarifications
 
 - **Stock source**: the API has no inventory. The product Zod schema mirrors the API exactly, with no invented `stock` field. Simulated availability lives in a separate `InventoryProvider` adapter (`src/lib/inventory.ts`), documented as simulated in the README. The per-line cap of 10 is a genuine policy and is described as such, not as stock.
-- **Price on add**: snapshot stored for offline rendering; reconciled against fresh catalogue data (FR-018).
+- **Price on add**: snapshot stored for offline rendering; reconciled against fresh catalogue data (FR-018). **Status: not implemented** (deliberately scoped out); see the README, [What I'd do with more time](../../README.md#live-price-reconciliation-and-no-longer-available-lines-fr-018).
 - **Large catalogue strategy**: pagination over virtualisation — shareable URLs, working back button, crawlable pages.
 - **Cross-tab conflicts**: last-write-wins; merging is out of scope.
