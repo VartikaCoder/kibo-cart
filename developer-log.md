@@ -13,6 +13,10 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 Caching: npm via `setup-node` (keyed on the lockfile), and Playwright browsers in `~/.cache/ms-playwright`, keyed on the installed Playwright version so an upgrade re-downloads. `e2e:install` always runs: on a cache hit it skips the download but still installs the OS packages, which live outside the cache. Node comes from `.nvmrc` (24, as local). Checked locally: the workflow parses, every script it calls exists, and `CI=true npm run e2e` passes with the CI settings (1 worker, retries, GitHub annotations). Not yet run on GitHub.
 
+**First run on GitHub (330a55c): E2E passed and the `check` job failed at typecheck.** The errors were `Cannot find name 'PageProps'` / `'LayoutProps'`. Those are global types Next generates into `.next/types`, wired up by the gitignored `next-env.d.ts`, and they only exist after `next dev` or `next build`. Locally they always existed, so typecheck passed; CI typechecks a fresh checkout before building. I reproduced it in a clean git worktree (same two errors). The fix: `"typecheck": "next typegen && tsc --noEmit"`, which passes in the clean worktree, so the script no longer depends on a prior build. Lesson: "passes locally" tested a dirty tree. The worktree reproduction is the check I should have run before calling the workflow verified.
+
+Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're now `checkout@v7`, `setup-node@v7`, `cache@v6`, `upload-artifact@v7` (all Node 24; I checked each one's inputs against its `action.yml`). `ubuntu-latest` is migrating to Ubuntu 26, so the runner is pinned to `ubuntu-24.04`, so the OS under Playwright's system dependencies changes only on purpose.
+
 ---
 
 ## 2026-10-27 — Security: CSP, headers, audit
