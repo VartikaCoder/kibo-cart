@@ -28,6 +28,11 @@ interface CatalogueData {
 
 export type Catalogue =
   | ({ source: 'live' } & CatalogueData)
-  | ({ source: 'snapshot'; fallbackReason: SourceFailure } & CatalogueData);
+  | ({
+      source: 'snapshot';
+      fallbackReason: SourceFailure;
+      /** When the snapshot was saved (ISO 8601), or null if unknown. */
+      capturedAt: string | null;
+    } & CatalogueData);
 
 export type CatalogueSource = Catalogue['source'];

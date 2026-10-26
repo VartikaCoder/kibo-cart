@@ -2,7 +2,8 @@ import { server } from '@/test/msw/server';
 import { apiProduct, productsHandlers, validProducts } from '@/test/msw/handlers';
 import snapshot from './snapshot.json';
 import { CatalogueUnavailableError } from './catalogue-unavailable-error';
-import { fetchCatalogue } from './fetch-catalogue';
+import { type FallbackLoader, fetchCatalogue } from './fetch-catalogue';
+import snapshotMeta from './snapshot.meta.json';
 
 let warn: jest.SpyInstance;
 beforeEach(() => {
@@ -135,12 +136,30 @@ describe('fetchCatalogue — snapshot fallback', () => {
 
   it('validates the fallback with the same rules as live data', async () => {
     server.use(productsHandlers.serverError());
-    const fallback = async () => [apiProduct({ id: 7 }), apiProduct({ id: 8, price: Number.NaN })];
+    const fallback = async () => ({
+      payload: [apiProduct({ id: 7 }), apiProduct({ id: 8, price: Number.NaN })],
+      capturedAt: null,
+    });
 
     const catalogue = await fetchCatalogue({ fallback });
 
     expect(catalogue.products.map((p) => p.id)).toEqual([7]);
   });
+
+  it('reports when the bundled snapshot was captured, from its metadata file', async () => {
+    server.use(productsHandlers.serverError());
+    const catalogue = await fetchCatalogue();
+    expect(catalogue).toMatchObject({ source: 'snapshot', capturedAt: snapshotMeta.capturedAt });
+  });
+
+  it.each([null, 'yesterday', '2026-13-45T00:00:00Z', 1793034753000])(
+    'reports capturedAt as null when the fallback’s timestamp is %p',
+    async (capturedAt) => {
+      server.use(productsHandlers.serverError());
+      const catalogue = await fetchCatalogue({ fallback: async () => ({ payload: validProducts, capturedAt }) });
+      expect(catalogue).toMatchObject({ source: 'snapshot', capturedAt: null });
+    },
+  );
 
   it('uses the real snapshot, which converts every price to integer cents', async () => {
     server.use(productsHandlers.serverError());
@@ -166,14 +185,14 @@ describe('fetchCatalogue — unavailable', () => {
   });
 
   it('does not touch the fallback when live succeeds', async () => {
-    const fallback = jest.fn(async () => validProducts);
+    const fallback = jest.fn(async () => ({ payload: validProducts, capturedAt: null }));
     await fetchCatalogue({ fallback });
     expect(fallback).not.toHaveBeenCalled();
   });
 
-  it.each<[string, () => Promise<unknown>, object]>([
-    ['yields no valid items', async () => [apiProduct({ id: -1 })], { kind: 'no-valid-items', received: 1 }],
-    ['is not an array', async () => ({}), { kind: 'not-an-array' }],
+  it.each<[string, FallbackLoader, object]>([
+    ['yields no valid items', async () => ({ payload: [apiProduct({ id: -1 })], capturedAt: null }), { kind: 'no-valid-items', received: 1 }],
+    ['is not an array', async () => ({ payload: {}, capturedAt: null }), { kind: 'not-an-array' }],
     ['fails to load', async () => Promise.reject(new Error('ENOENT')), { kind: 'load-error', message: 'ENOENT' }],
   ])('throws CatalogueUnavailableError when the fallback %s', async (_label, fallback, fallbackFailure) => {
     server.use(productsHandlers.forbidden());

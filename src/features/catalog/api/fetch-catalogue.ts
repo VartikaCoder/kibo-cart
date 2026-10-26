@@ -1,4 +1,5 @@
 import 'server-only';
+import { z } from 'zod';
 import { devWarn } from '@/lib/dev-log';
 import { ApiProductSchema } from '../schemas/api-product';
 import type { Catalogue, Product, SourceFailure } from '../types';
@@ -8,8 +9,15 @@ import { toProduct } from './to-product';
 export const PRODUCTS_URL = 'https://fakestoreapi.com/products';
 const DEFAULT_TIMEOUT_MS = 5000;
 
-/** Returns the raw, still-untrusted fallback payload. It goes through the same validation as the live response. */
-export type FallbackLoader = () => Promise<unknown>;
+/**
+ * A fallback catalogue. `payload` is raw and untrusted: it goes through the same validation as the live
+ * response. `capturedAt` says when it was saved (an ISO timestamp), so the UI can say how old it is.
+ */
+export interface FallbackData {
+  payload: unknown;
+  capturedAt: unknown;
+}
+export type FallbackLoader = () => Promise<FallbackData>;
 
 export interface FetchCatalogueOptions {
   /** `null` disables the fallback, so a live failure surfaces as `CatalogueUnavailableError`. */
@@ -19,7 +27,12 @@ export interface FetchCatalogueOptions {
 
 type ReadResult = { ok: true; products: Product[] } | { ok: false; failure: SourceFailure };
 
-export const loadSnapshot: FallbackLoader = async () => (await import('./snapshot.json')).default;
+export const loadSnapshot: FallbackLoader = async () => {
+  const [snapshot, meta] = await Promise.all([import('./snapshot.json'), import('./snapshot.meta.json')]);
+  return { payload: snapshot.default, capturedAt: meta.default.capturedAt };
+};
+
+const CapturedAtSchema = z.iso.datetime({ offset: true });
 
 /** Uncached. Live → snapshot → `CatalogueUnavailableError` (research R3, contracts/catalogue-api.md). */
 export async function fetchCatalogue({
@@ -35,11 +48,23 @@ export async function fetchCatalogue({
   if (fallback === null) {
     throw new CatalogueUnavailableError(live.failure, { kind: 'disabled' });
   }
-  const snapshot = await readFallback(fallback);
+  let data: FallbackData;
+  try {
+    data = await fallback();
+  } catch (error) {
+    throw new CatalogueUnavailableError(live.failure, { kind: 'load-error', message: errorMessage(error) });
+  }
+  const snapshot = validateProducts(data.payload, 'fallback');
   if (!snapshot.ok) {
     throw new CatalogueUnavailableError(live.failure, snapshot.failure);
   }
-  return { source: 'snapshot', fallbackReason: live.failure, ...withCategories(snapshot.products) };
+  return {
+    source: 'snapshot',
+    fallbackReason: live.failure,
+    // Unknown or malformed → null: the UI then omits the age rather than showing a wrong one.
+    capturedAt: CapturedAtSchema.safeParse(data.capturedAt).data ?? null,
+    ...withCategories(snapshot.products),
+  };
 }
 
 async function readLive(timeoutMs: number): Promise<ReadResult> {
@@ -63,16 +88,6 @@ async function readLive(timeoutMs: number): Promise<ReadResult> {
     return { ok: false, failure: { kind: 'invalid-json' } };
   }
   return validateProducts(body, 'live');
-}
-
-async function readFallback(load: FallbackLoader): Promise<ReadResult> {
-  let raw: unknown;
-  try {
-    raw = await load();
-  } catch (error) {
-    return { ok: false, failure: { kind: 'load-error', message: errorMessage(error) } };
-  }
-  return validateProducts(raw, 'fallback');
 }
 
 /**

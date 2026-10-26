@@ -19,6 +19,19 @@ describe('SnapshotNotice', () => {
     );
   });
 
+  it('says how old the snapshot is, with the exact UTC time in a title and a machine-readable dateTime', () => {
+    const age = { relative: '2 hours ago', absolute: 'Oct 26, 2026, 2:20 PM UTC', iso: '2026-10-26T14:20:15Z' };
+    render(<SnapshotNotice retryAction={jest.fn(async () => {})} age={age} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Showing a saved copy of the catalogue from 2 hours ago. Prices may be out of date.',
+    );
+    const time = screen.getByText('2 hours ago');
+    expect(time.tagName).toBe('TIME');
+    expect(time).toHaveAttribute('dateTime', '2026-10-26T14:20:15Z');
+    expect(time).toHaveAttribute('title', 'Oct 26, 2026, 2:20 PM UTC');
+  });
+
   it('Retry expires the cache, then refreshes the page', async () => {
     const pending = deferred();
     const retryAction = jest.fn(() => pending.promise);

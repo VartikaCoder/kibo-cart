@@ -6,7 +6,7 @@ import { EmptyResults } from './empty-results';
 import { Pagination } from './pagination';
 import { ProductGrid } from './product-grid';
 import { ResultSummary } from './result-summary';
-import { SnapshotNotice } from './snapshot-notice';
+import { type SnapshotAge, SnapshotNotice } from './snapshot-notice';
 
 interface ProductListingProps {
   source: CatalogueSource;
@@ -14,14 +14,16 @@ interface ProductListingProps {
   query: CatalogueQuery;
   result: CatalogueResult;
   retryAction: () => Promise<void>;
+  /** Formatted on the server; only used when `source` is `'snapshot'`. */
+  snapshotAge?: SnapshotAge | null;
 }
 
-export function ProductListing({ source, categories, query, result, retryAction }: ProductListingProps) {
+export function ProductListing({ source, categories, query, result, retryAction, snapshotAge = null }: ProductListingProps) {
   const current = { ...query, page: result.page };
 
   return (
     <div className="flex flex-col gap-6">
-      {source === 'snapshot' && <SnapshotNotice retryAction={retryAction} />}
+      {source === 'snapshot' && <SnapshotNotice retryAction={retryAction} age={snapshotAge} />}
       <CatalogueFilters query={current} categories={categories} />
       <ResultSummary result={result} pageSize={PAGE_SIZE} />
       {result.items.length === 0 ? <EmptyResults query={current} /> : <ProductGrid products={result.items} />}

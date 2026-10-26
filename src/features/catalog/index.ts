@@ -1,7 +1,7 @@
 export * from './client';
 export { CatalogueUnavailableError } from './api/catalogue-unavailable-error';
 export { fetchCatalogue } from './api/fetch-catalogue';
-export type { FallbackLoader, FetchCatalogueOptions } from './api/fetch-catalogue';
+export type { FallbackData, FallbackLoader, FetchCatalogueOptions } from './api/fetch-catalogue';
 export { CATALOGUE_TAG, getCatalogue } from './api/get-catalogue';
 export { refreshCatalogue } from './api/refresh-catalogue';
 export { CatalogueLoading } from './components/catalogue-loading';
@@ -11,3 +11,4 @@ export type { CatalogueResult } from './query/apply-catalogue-query';
 export { parseCatalogueQuery } from './schemas/catalogue-query';
 export type { CatalogueQuery, SortKey } from './schemas/catalogue-query';
 export type { Catalogue, CatalogueSource, Product, SourceFailure } from './types';
+export type { SnapshotAge } from './components/snapshot-notice';
