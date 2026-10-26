@@ -40,3 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .claude/launch.json
+
+# playwright
+/.next-e2e/
+/playwright-report/
+/test-results/
+/blob-report/
