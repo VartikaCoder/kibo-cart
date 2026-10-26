@@ -1,10 +1,9 @@
+export * from './client';
 export { CatalogueUnavailableError } from './api/catalogue-unavailable-error';
 export { fetchCatalogue } from './api/fetch-catalogue';
 export type { FallbackLoader, FetchCatalogueOptions } from './api/fetch-catalogue';
 export { CATALOGUE_TAG, getCatalogue } from './api/get-catalogue';
 export { refreshCatalogue } from './api/refresh-catalogue';
-export { CatalogueError } from './components/catalogue-error';
-export { CatalogueHeading } from './components/catalogue-heading';
 export { CatalogueLoading } from './components/catalogue-loading';
 export { ProductListing } from './components/product-listing';
 export { applyCatalogueQuery, PAGE_SIZE } from './query/apply-catalogue-query';

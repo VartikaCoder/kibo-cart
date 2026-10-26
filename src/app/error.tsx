@@ -1,10 +1,9 @@
 'use client';
 
-import { CatalogueError } from '@/features/catalog/components/catalogue-error';
-import { CatalogueHeading } from '@/features/catalog/components/catalogue-heading';
+// Error boundaries are Client Components, so this uses the feature's client-safe entry point:
+// the main index also exports server-only code.
+import { CatalogueError, CatalogueHeading } from '@/features/catalog/client';
 
-// Error boundaries must be Client Components, so this imports the two client-safe leaves directly
-// rather than through the feature index (which also exports server-only code).
 export default function ErrorPage({ retry }: { error: unknown; retry: () => void }) {
   return (
     <>

@@ -53,6 +53,7 @@ export default async function jestConfig() {
       '!src/test/**',
       '!src/app/**',
       '!src/**/index.ts',
+      '!src/features/*/client.ts', // re-export-only public surface, like index.ts
       '!src/**/types.ts', // type-only modules; no runtime code to cover
       // Need the Next runtime ('use cache', cacheLife, updateTag); exercised by the build and E2E, not Jest.
       '!src/features/catalog/api/get-catalogue.ts',
