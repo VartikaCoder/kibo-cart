@@ -26,21 +26,23 @@ export default async function jestConfig() {
   };
 
   return {
-    // Two environments, chosen by extension: `*.test.ts` runs in node (domain, lib, schemas, catalogue
-    // fetch via MSW); `*.test.tsx` runs in jsdom (components, which get their data as props).
+    // Two environments, chosen by file name: `*.test.ts` runs in node (domain, lib, schemas, catalogue
+    // fetch via MSW); `*.test.tsx` (components) and `*.dom.test.ts` (non-React code that needs browser
+    // APIs such as localStorage and storage events) run in jsdom.
     projects: [
       {
         ...base,
         displayName: 'node',
         testEnvironment: 'node',
         testMatch: ['<rootDir>/src/**/*.test.ts'],
+        testPathIgnorePatterns: [...base.testPathIgnorePatterns, '\\.dom\\.test\\.ts$'],
         setupFilesAfterEnv: ['<rootDir>/src/test/setup-node.ts'],
       },
       {
         ...base,
         displayName: 'dom',
         testEnvironment: 'jsdom',
-        testMatch: ['<rootDir>/src/**/*.test.tsx'],
+        testMatch: ['<rootDir>/src/**/*.test.tsx', '<rootDir>/src/**/*.dom.test.ts'],
         setupFilesAfterEnv: ['<rootDir>/src/test/setup-dom.ts'],
         clearMocks: true,
       },

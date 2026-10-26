@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ImageUrlSchema } from '@/lib/image-url';
 
 /**
  * Mirrors one item of GET https://fakestoreapi.com/products, and nothing more (data-model §1).
@@ -11,8 +12,7 @@ export const ApiProductSchema = z.object({
   price: z.number().nonnegative(),
   description: z.string(),
   category: z.string().trim().min(1),
-  // next/image throws on hosts outside remotePatterns, so the host is part of validity.
-  image: z.url({ protocol: /^https$/, hostname: /^fakestoreapi\.com$/ }),
+  image: ImageUrlSchema,
   rating: z.object({
     rate: z.number().min(0).max(5),
     count: z.number().int().nonnegative(),
