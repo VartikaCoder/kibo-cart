@@ -13,7 +13,7 @@
 | `Pagination` | Server | `catalog/components` | `page`, `totalPages`, `query` (renders `<Link>`s) |
 | `EmptyResults` | Server | `catalog/components` | `query` → "Clear filters" link to `/` |
 | `SnapshotNotice` | client leaf | `catalog/components` | Retry → `refreshCatalogue()` + `router.refresh()`; `age?: { relative, absolute, iso }`, formatted on the server |
-| `AddToCartControl` | client leaf | `cart/components` | `product snapshot`, `limit: LineLimit` |
+| `AddToCartControl` | client leaf | `cart/components` | `product snapshot`; the line limit comes from the store (`lineLimit(productId)`), the same lookup `CartLineItem` uses, so there is one path to inventory |
 | `CartButton` | client | `cart/components` | opens drawer; badge from `s => s.totalQuantity` |
 | `CartDrawer` | client | `cart/components` | native `<dialog>` |
 | `CartLineItem` | client | `cart/components` | `productId` (subscribes to its own line) |

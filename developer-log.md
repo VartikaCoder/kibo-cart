@@ -45,7 +45,7 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 **Not done**
 
-- `CatalogueSync` (live price reconciliation) wasn't in this brief. Until it exists, price-change notes and "No longer available" lines can't occur, so they aren't rendered yet.
+- `CatalogueSync` (live price reconciliation): **scoped out** (user decision). The deployed demo usually serves the static snapshot, and fetching the catalogue in the layout would cost the static shell. Recorded in the README under "What I'd do with more time"; the domain and store support stays in place.
 - Full keyboard flow, focus containment, and axe checks belong to Playwright (next).
 
 ---
