@@ -57,13 +57,17 @@ and duplicates the URL-state machinery.
 2. Non-2xx, network error, timeout, non-JSON, or non-array → *source failure*.
 3. Array → per-item `ApiProductSchema.safeParse`. Invalid items are dropped (dev: `console.warn` with index + issues). If **zero** valid items remain → *source failure*.
 4. On source failure → load the bundled `src/features/catalog/api/snapshot.json`, validated with the **same**
-   schema. Return `{ source: 'snapshot', products }`.
+   schema. Return `{ source: 'snapshot', fallbackReason, capturedAt, products }`; `capturedAt` comes from `snapshot.meta.json`.
 5. If the snapshot also yields zero valid items → throw `CatalogueUnavailableError` → `error.tsx` (error state + Retry).
 
 `getCatalogue()` (the cached wrapper) calls `cacheLife('hours')` for `source: 'live'` and an inline short profile
 (`{ stale: 30, revalidate: 60, expire: 300 }`) for `source: 'snapshot'`, so the app recovers quickly when the API
-comes back. The UI shows a non-blocking notice, "Showing a saved copy of the catalogue. Prices may be out of
-date.", with a **Retry** button bound to a Server Action that calls `updateTag('catalogue')` and then `router.refresh()`.
+comes back. The UI shows a non-blocking notice, "Showing a saved copy of the catalogue from 3 days ago. Prices may
+be out of date.", with a **Retry** button bound to a Server Action that calls `updateTag('catalogue')` and then
+`router.refresh()`. The age uses `Intl.RelativeTimeFormat` inside a `<time dateTime>` whose `title` holds the exact
+UTC timestamp. It is **computed on the server at request time** (`connection()`, then the clock) and passed down as
+finished strings, so the client's first render matches the server's. It doesn't tick while the page stays open; any
+navigation or Retry recomputes it. When the capture time is unknown, the notice omits the "from …" part.
 
 **Rationale**: fakestoreapi is unreliable and has been seen returning 403 to cloud/serverless egress IPs, which
 would otherwise break the live deployment. Using the same validation path means the snapshot is trusted no more

@@ -41,6 +41,8 @@ Do not add one.
 ```ts
 type CatalogueSource = 'live' | 'snapshot' | 'fixture'
 interface Catalogue { source: CatalogueSource; products: Product[]; categories: string[] }
+// source 'snapshot' adds: fallbackReason: SourceFailure; capturedAt: string | null
+//   capturedAt comes from snapshot.meta.json, validated as an ISO 8601 timestamp; invalid or missing → null
 
 fetchCatalogue(): Promise<Catalogue>          // uncached; unit-tested with MSW
 getCatalogue(): Promise<Catalogue>            // 'use cache' + cacheTag('catalogue') + conditional cacheLife

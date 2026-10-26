@@ -5,6 +5,22 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## 2026-10-26 — Snapshot age in the fallback notice
+
+**What landed**: the snapshot notice says how old the saved catalogue is ("…from 3 hours ago."), in a `<time dateTime>` whose `title` holds the exact UTC timestamp ("Oct 26, 2026, 2:20 PM UTC").
+
+**Decisions**
+
+- *Hydration-safe by construction.* `page.tsx` calls `connection()`, reads the clock once, and formats on the server. `SnapshotNotice` receives finished strings and never touches `Date`. Formatting lives in a pure `lib/relative-time.ts` that takes `now` as an argument, so it's unit-tested with fixed dates.
+- *The capture time travels with the data.* The fallback loader now returns `{ payload, capturedAt }`; the bundled loader reads `snapshot.meta.json`. A snapshot `Catalogue` carries `capturedAt`, validated as ISO 8601; invalid or missing → `null`, and the notice drops the "from …" part rather than showing a wrong age.
+- *`numeric: 'always'`*, so it's never "from now" (which reads as the future) or "from yesterday". Anything under a minute, or in the future from clock skew, shows "1 minute ago". Units round down.
+- *UTC in the title, labelled as UTC.* The server's time zone isn't the reader's. A test runs the formatter under `TZ=Asia/Tokyo` and gets the same result.
+- *It doesn't tick.* The age is correct when the page renders and is recomputed on any navigation or Retry. A live-updating clock would need client-side time, which reintroduces the hydration problem this avoids.
+
+**Verified in the browser**: a dev server with the API forced down (`dev-api-down` in `.claude/launch.json`: a dead `HTTPS_PROXY` with `NODE_USE_ENV_PROXY=1`). The server HTML and the hydrated DOM both read "…from 3 hours ago." with the same `title` and `dateTime`. No hydration warnings, no console errors.
+
+---
+
 ## 2026-10-26 — Cart UI components (FR-006–FR-009, FR-017, US2)
 
 **What landed**

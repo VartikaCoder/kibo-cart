@@ -12,7 +12,7 @@
 | `CatalogueFilters` | client leaf | `catalog/components` | `query`, `categories` (search, category, and sort in one GET form) |
 | `Pagination` | Server | `catalog/components` | `page`, `totalPages`, `query` (renders `<Link>`s) |
 | `EmptyResults` | Server | `catalog/components` | `query` → "Clear filters" link to `/` |
-| `SnapshotNotice` | client leaf | `catalog/components` | Retry → `refreshCatalogue()` + `router.refresh()` |
+| `SnapshotNotice` | client leaf | `catalog/components` | Retry → `refreshCatalogue()` + `router.refresh()`; `age?: { relative, absolute, iso }`, formatted on the server |
 | `AddToCartControl` | client leaf | `cart/components` | `product snapshot`, `limit: LineLimit` |
 | `CartButton` | client | `cart/components` | opens drawer; badge from `s => s.totalQuantity` |
 | `CartDrawer` | client | `cart/components` | native `<dialog>` |
