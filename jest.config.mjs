@@ -62,8 +62,11 @@ export default async function jestConfig() {
       '!src/features/catalog/api/get-catalogue.ts',
       '!src/features/catalog/api/refresh-catalogue.ts',
     ],
+    // SC-006: cart domain ≥ 90%, project ≥ 80%. Jest measures a path threshold on that directory alone and
+    // leaves its files out of `global`, so `global` covers the rest of the project.
     coverageThreshold: {
       global: { lines: 80, branches: 80, functions: 80, statements: 80 },
+      './src/features/cart/domain/': { lines: 90, branches: 90, functions: 90, statements: 90 },
     },
   };
 }

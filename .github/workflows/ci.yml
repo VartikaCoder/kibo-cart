@@ -33,6 +33,17 @@ jobs:
       - run: npm run typecheck
       # Jest with coverage; fails if the coverage thresholds in jest.config.mjs aren't met.
       - run: npm run test:cov
+
+      # The HTML report is coverage/lcov-report/index.html. Uploaded even when a threshold fails, so the
+      # report shows what dropped.
+      - name: Upload coverage report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+
       # Live API at build time; if fakestoreapi blocks the runner, the build uses the bundled snapshot.
       - run: npm run build
 
