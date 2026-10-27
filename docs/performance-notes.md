@@ -49,3 +49,23 @@ A and moves away from "validate with Zod at every trust boundary".
 **Regression guard.** `src/test/client-bundle-guard.test.ts` imports every `'use client'` module with `zod`
 made to throw, so a static Zod import anywhere in a client module's graph fails CI. The dynamic `import()` of
 the cart schema is deliberately allowed. Checked by reintroducing both original imports: each failed the guard.
+
+## Lighthouse, mobile preset (2026-10-27) — SC-004
+
+Lighthouse 13.5.0, default mobile preset (emulated Moto G Power, simulated throttling), 3 runs per target;
+the performance score lists all three, and the other columns come from the median-score run. Reports for the median runs: `docs/lighthouse/mobile-{deployed,local}-median.{html,json}`.
+
+| Target | Performance | Accessibility | Best practices | SEO | LCP | CLS | TBT |
+|---|---|---|---|---|---|---|---|
+| Deployed (https://kibo-cart.vercel.app) | **98** (94, 98, 98) | 100 | 100 | 100 | 2.4 s | 0 | 30 ms |
+| Local production build (`next start`) | **93** (93, 95, 91) | 100 | 100 | 100 | 3.2 s | 0 | 30 ms |
+
+- **SC-004 (performance and accessibility ≥ 90 on mobile) is met** on both targets, in every run.
+- **LCP element:** the first product card's image (the Fjallraven backpack, `<img … fetchpriority="high"
+  loading="eager">`), in all six runs.
+- **Local vs deployed:** local scores lower even though its observed LCP phases are tiny (time to first byte
+  5 ms vs 103 ms deployed). The score comes from Lighthouse's *simulated* throttling, which models connections.
+  `next start` serves HTTP/1.1 on localhost, while Vercel serves HTTP/2 from a CDN; that is the likely cause of
+  the gap. Not isolated further. Deployed LCP (2.4 s) is inside the 2.5 s "good" threshold; local (3.2 s) isn't.
+- **Remaining opportunities (both targets, not acted on):** image delivery (~123 KiB estimated savings), unused
+  JavaScript (~26 KiB), legacy JavaScript (~14 KiB), and render-blocking requests (~120 ms).
