@@ -153,7 +153,10 @@ Network calls are mocked with MSW, never by mocking our own modules.
 
 The coverage thresholds are 90% for the cart domain and 80% for the rest, enforced in CI; actual coverage is about 99% of lines and 96% of branches. Each CI run uploads the HTML report as the `coverage-report` artifact. The
 effort went where bugs are silent and expensive: the cart rules, money, and every validation boundary (API,
-saved cart, URL). Route files in `src/app` are left out of coverage and checked end to end instead. I didn't
+saved cart, URL). Some files are left out of coverage, each with its reason in `jest.config.mjs`: route files
+in `src/app` and the two catalogue loaders that need the Next runtime (`get-catalogue.ts`,
+`refresh-catalogue.ts`) are checked by the build and end to end instead; the rest are re-export entry points
+(`index.ts`, `client.ts`), type-only modules, test helpers, and the tests themselves. I didn't
 chase 100% on UI wiring, because tests written only to execute glue code end up asserting structure rather than
 behaviour: they break on harmless refactors and catch little.
 
@@ -181,8 +184,8 @@ pull request.
 Deliberately scoped out. The cart doesn't yet react to catalogue changes after an item is added: there is no
 "price changed" note on a line, and no "No longer available" state for products that have disappeared.
 
-- **Why it's low value here:** fakestoreapi often blocks cloud hosts, so the deployed demo usually serves the
-  bundled snapshot. Its prices never change, and the design deliberately doesn't reconcile against a snapshot
+- **Why it's low value here:** when fakestoreapi refuses the host, the deployed demo serves the bundled
+  snapshot. Its prices never change, and the design deliberately doesn't reconcile against a snapshot
   (research R3), because a saved copy isn't authoritative.
 - **Why it isn't free:** the plan's `CatalogueSync` needs the catalogue in the root layout. Fetching it there
   would move uncached data into the layout and cost the prerendered static shell, which currently makes the
