@@ -171,7 +171,7 @@ pull request.
 
 - [Accessibility notes](docs/accessibility-notes.md): structure, focus, the live region, contrast, what axe misses
 - [Security notes](docs/security-notes.md): validation, the CSP and how it was checked, `npm audit`, limits of client-side checks
-- [Performance notes](docs/performance-notes.md): the Zod bundle investigation, Lighthouse results
+- [Performance notes](docs/performance-notes.md): the Zod bundle investigation, Lighthouse results, what re-renders when the cart changes
 - [ADR-001: state management](docs/adr-001-state-management.md)
 - [Developer log](developer-log.md): how AI was used, what was checked by hand, and the decisions along the way
 - [Code review exercise](review/CODE_REVIEW.md): a before/after component review

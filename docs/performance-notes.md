@@ -78,3 +78,40 @@ the performance score lists all three, and the other columns come from the media
   value on the product cards (`CARD_IMAGE_SIZES` in `product-card.tsx`), followed by a re-measure for a
   before/after here. With LCP already inside "good", I chose to leave it rather than make an unmeasured change
   late. It's listed in the README under "What I'd do with more time".
+
+## What re-renders when the cart changes (SC-005)
+
+**Measured.** Clicking "Add to cart" on one product card re-rendered no `ProductCard` and no part of the
+product grid: the page tree (`OuterLayoutRouter` and everything under it) is greyed out in the flame graph. Only
+the clicked card's `AddToCartControl` rendered; the other cards' controls didn't. That is what SC-005 claims.
+
+How it was captured: React DevTools Profiler, an empty cart, the drawer closed, one click on a card's
+"Add to cart". This was a development build (`HotReload` and the dev overlay's error boundary appear in the
+tree), so the durations are inflated and a production build wouldn't include those wrappers; the shape of the
+commit is what matters. Captures: [ranked](images/profiler-ranked-add-to-cart.png),
+[flame graph](images/profiler-flamegraph-add-to-cart.png).
+
+- The commit was caused by exactly four subscribers: `CartButton`, `AddToCartControl`, `CartDrawer`,
+  `CartAnnouncer`.
+- **The drawer rendered although it was closed.** `CartDrawer` stays mounted, and the native `<dialog>` only
+  controls whether it's shown, so its subtree (`Drawer`, `CartTotals`, the line's `QuantityStepper`) renders on
+  every cart change, visible or not. That's a real, small cost: about 1.3 ms of the commit here (`Drawer` 0.8 ms,
+  `CartDrawer` 0.5 ms, self time).
+- `CartLineItem key="1"` (1.7 ms) is a **mount**, not a re-render: the cart was empty before the click. It
+  doesn't tell you what re-rendering an existing line costs.
+- Render time for the whole commit: 9 ms, layout effects 0.6 ms.
+- The recording has two commits; only the first was examined. The second was not.
+
+**Why.** Product cards are Server Components; the only client code per card is `AddToCartControl`. Every
+cart component subscribes to the Zustand store with a narrow selector that returns a primitive or a stable
+value (`lineQuantity(s, productId)`, `s.drawerOpen`, `totalQuantity(...)`; the drawer's list of product ids uses
+`useShallow`). Zustand re-renders a subscriber only when its selected value changes, so a change to product 1's
+line is invisible to every other card's control. No `memo` anywhere: nothing measured called for it
+(Constitution VI).
+
+**Reasoned from the code, not measured.** Adding a *new* product changes the drawer's id list, so `CartDrawer`
+re-renders and, with no `memo`, so does every `CartLineItem`. Changing the quantity of an existing line doesn't
+change that list, so only that line's `CartLineItem` re-renders. Carts are small, so re-rendering every line on
+an add should cost little, but I haven't measured a multi-line cart, and I won't add a `memo` until a
+measurement shows a need for it. None of this is checked by an automated test; an RTL render-count test was
+planned and not built (research R12).
