@@ -7,10 +7,17 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ## Summary
 
-*Draft, to be rewritten. It summarises the dated entries below; references are given as "date — heading".
-Quotes marked "session transcript" come from the AI coding session itself, not from files in the repo.*
+This section answers the four parts of the AI-augmentation requirement. Each point refers to the dated entry
+below that holds the detail, as "date — heading". Quotes marked "session transcript" come from the AI coding
+session itself, not from files in the repo.
 
 ### AI Strategy
+
+Direction and review were themselves AI-assisted: a second session acted as a sounding board for scoping and
+for reviewing the agent's output. Where an entry says I required or rejected something, the decision was mine;
+the reasoning was often worked out in that second session. The two disagreed more than once — the data-layer
+prompt contradicted the generated plan, and at least one claim from the review session turned out to be
+unsupported and was removed (Verification, "A correction to this log").
 
 **How context was supplied.**
 - `CLAUDE.md` holds the standing constraints: stack, folder and dependency rules, money as integer cents, the
@@ -19,16 +26,19 @@ Quotes marked "session transcript" come from the AI coding session itself, not f
   data model) is the authoritative spec, and `specs/001-shopping-cart/contracts/` defines the interfaces
   (catalogue API, persisted cart, UI components, URL params). `CLAUDE.md` says to stop and ask when it and the
   spec disagree.
+- These files were in use, but not yet tracked, from the start. They were first committed in `e921a99`
+  (26 Oct, 20:26), after the first three data-layer commits. `00744b6` (19:53) already cites
+  `contracts/catalogue-api.md` and data-model §1.
 - The dependency rule ("Do not add a dependency without asking first…", `CLAUDE.md`; "No new dependency without
   a written justification", constitution) made every install a stop-and-ask point. In the session transcript
   the agent asked before installing Zod/Jest/MSW, the four React Testing Library / jsdom packages, and
   Zustand.
 
 **How prompting differed by task type.**
-- *Architecture*: options and trade-offs presented, the human decides (`CLAUDE.md`: "present the options
-  briefly and wait"). The decisions are marked "(user decision)" in the entries: the testing split (26 Oct —
+- *Architecture*: the agent presents options and trade-offs, and I decide (`CLAUDE.md`: "present the
+  options briefly and wait"). The decisions are marked "(my decision)" in the entries: the testing split (26 Oct —
   Product listing), duplicate-id rules (26 Oct — Cart domain and store), scoping out `CatalogueSync` (26 Oct —
-  Cart UI components), and not stacking `zod/mini` (27 Oct — Zod out of the initial client load).
+  Cart UI components), and not stacking `zod/mini` (26 Oct — Zod out of the initial client load).
 - *Implementation*: tight constraints plus the schemas and contracts (data model, `contracts/`).
 - *Tests*: describe behaviour and ban implementation detail (`CLAUDE.md` testing rules: test behaviour not
   implementation, `getByRole` before `getByTestId`, no snapshot tests, MSW not module mocks, never weaken a
@@ -46,7 +56,7 @@ prompt, with additions"). Both versions are from the session transcript.
 
 This contradicted `contracts/catalogue-api.md` on naming (`fetchCatalogue()`), structure (a `Catalogue`
 result, caching in a separate `'use cache'` wrapper), and error handling (`CatalogueUnavailableError` thrown
-when every source fails). The agent stopped, set out the conflict, and offered three options. The human chose
+when every source fails). The agent stopped, set out the conflict, and offered three options. I chose
 this one:
 
 *Version 2*, the option chosen:
@@ -58,45 +68,55 @@ this one:
 
 ### Human Audit
 
-**1. Duplicate product ids in a saved cart (data integrity at a trust boundary).** Details: 26 Oct — Cart
-domain and store ("Decisions"); reasoning in the spec's edge-case list.
+Three corrections. Each shows the code as the agent first committed it and as it ended up, and each is
+structural: performance, correctness, architecture.
 
-The cart brief said "Duplicate product ids: first wins, later ones dropped." The agent noticed
-`contracts/persisted-cart.md` said the opposite, asked, and recommended the brief's rule:
+**1. Zod in every first page load (performance).** Details: 26 Oct — Zod out of the initial client load;
+`docs/performance-notes.md`.
 
-> First wins, drop later (Recommended): Follows your brief and matches the catalogue rule; one bad line
-> doesn't wipe a real cart. *(session transcript)*
+I found it: the client bundle for `/` was 427 KB against a 376 KB scaffold baseline, and `zod` alone
+was 98.54 KB of the initial load. The agent had put Zod on the client in two places.
 
-The human rejected that and required the contract's rule. A corrupted cart is our own data gone wrong, so it
-gives no safe basis for guessing the shopper's intent. Third-party API data is different: partial success is
-fine there. The result is two rules for the same input, both in the spec's edge-case list:
+*Before*: the filter form reused the server's Zod URL parser to tidy its own values
+(`src/features/catalog/components/catalogue-filters.tsx`, before `db29eda`):
 
-```ts
-// src/features/cart/store/persisted-cart-schema.ts
-// Unlike the catalogue (first wins), duplicates here mean the payload can't be trusted at all.
-.refine((lines) => new Set(lines.map((l) => l.productId)).size === lines.length, 'duplicate productId'),
-```
+```tsx
+import { type CatalogueQuery, parseCatalogueQuery } from '../schemas/catalogue-query';
 
-**2. Prompt vs plan on the catalogue data layer (architectural).** Details: 26 Oct — Catalogue data layer.
-The task prompt and the plan contradicted each other on naming, structure, and error handling (see AI
-Strategy above). The human arbitrated: the plan's structure wins, plus the two requirements from the prompt
-that the plan lacked, `fallbackReason` and an injectable fallback. The agent had recommended this option; the
-injectable fallback is the substantive human contribution, written into the original prompt. Without it, a
-working snapshot makes every failure look like success, and `error.tsx` can never be tested:
-
-```ts
-// src/features/catalog/api/fetch-catalogue.ts
-export interface FetchCatalogueOptions {
-  /** `null` disables the fallback, so a live failure surfaces as `CatalogueUnavailableError`. */
-  fallback?: FallbackLoader | null;
-  …
+/** Runs form values through the same parser as the URL, so trimming/truncation/validation match. */
+function normalise(fields: { category: string | null; q: string; sort: string }, categories: string[]): CatalogueQuery {
+  return parseCatalogueQuery({ category: fields.category ?? undefined, q: fields.q, sort: fields.sort }, categories);
 }
 ```
 
-**3. Silent quantity reductions on load (correctness/accessibility).** Details: 26 Oct — Announce quantities
+Every cart component also reached the saved-cart schema through a static import
+(`src/features/cart/store/cart-storage.ts`, before `421cd6c`):
+
+```ts
+import { type PersistedCart, PersistedCartSchema } from './persisted-cart-schema';
+```
+
+*After*: the form uses Zod-free rules (`query/catalogue-query.ts`), with a parity test against the Zod parser
+over 500 generated cases. That's safe because the form isn't a trust boundary: the server re-validates every
+URL. The saved-cart schema is now imported only when a saved cart is actually read:
+
+```ts
+// src/features/cart/store/cart-storage.ts
+import type { PersistedCart } from './persisted-cart-schema';
+…
+const { PersistedCartSchema } = await import('./persisted-cart-schema');
+```
+
+Measurement drove the rework, not the first fix. Removing the filter-form path alone saved 0.06 KB, because
+the cart path pulled in the same Zod modules. Now a first visit downloads no Zod at all (157.4 KB of
+JavaScript transferred). A returning visitor with a saved cart fetches a 30.8 KB chunk after
+DOMContentLoaded. `client-bundle-guard.test.ts` fails CI if any client module imports Zod statically again.
+
+**2. Silent quantity reductions on load (correctness/accessibility).** Details: 26 Oct — Announce quantities
 reduced on load.
 
-As first committed (`ebff036`), the store clamped saved quantities to current limits and told no one:
+*Before*: as first committed, the store clamped saved quantities to current limits and told no one
+(`src/features/cart/store/cart-store.ts` at `ebff036`):
 
 ```ts
 function afterHydration() {
@@ -106,9 +126,11 @@ function afterHydration() {
 }
 ```
 
-The agent raised this as an open question. The human required that it be announced through the live region,
-plus a dismissible per-line note and no blocking dialog, because changing a shopper's data silently is a
-trust problem ("The shopper left 8 and comes back to 4"). Now the reductions are returned and announced:
+The agent raised this as an open question. I required three things: announce it through the live
+region, show a dismissible note on the line, and never block with a dialog. Changing a shopper's data
+silently is a trust problem: "The shopper left 8 and comes back to 4".
+
+*After*: the reductions are returned and announced:
 
 ```ts
 // src/features/cart/store/cart-persistence.ts
@@ -116,25 +138,73 @@ const reductions = store.getState().completeHydration();
 if (reductions.length > 0) onQuantityReduced?.(reductions);
 ```
 
+**3. A broken dependency rule, documented instead of fixed (architecture).** Details: 26 Oct — Product listing
+("Decisions").
+
+`CLAUDE.md` says code outside a feature reaches it only through its public entry point, never by deep paths.
+The agent's error boundary deep-imported two catalogue components. It explained why in a comment and listed
+the deviation in the log (`0bc955f`).
+
+*Before*:
+
+```tsx
+// src/app/error.tsx
+import { CatalogueError } from '@/features/catalog/components/catalogue-error';
+import { CatalogueHeading } from '@/features/catalog/components/catalogue-heading';
+
+// Error boundaries must be Client Components, so this imports the two client-safe leaves directly
+// rather than through the feature index (which also exports server-only code).
+```
+
+The reason was real: `index.ts` exports server-only code, which a Client Component can't import. But a
+documented exception is how a dependency rule wears away, and I didn't accept it. The fix
+(`66a4e5c`) gives the feature a second public surface, `features/catalog/client.ts`, for Client Components;
+`index.ts` re-exports it.
+
+*After*:
+
+```tsx
+// src/app/error.tsx
+import { CatalogueError, CatalogueHeading } from '@/features/catalog/client';
+```
+
+The build now enforces the boundary, not just convention: pointing `error.tsx` at the full index fails the
+build (`"use cache"` in a Client Component). `CLAUDE.md` gained the `client.ts` rule in `99d1d5b`.
+
 ### Verification
 
-**Method**: AI-generated tests cover the edge cases. Then each guarantee is broken on purpose, the suite has
-to fail, and the code is restored. Mutation sets recorded in the log:
+**How the tests were generated.** The agent wrote the edge-case tests from the spec's "Edge Cases" list, under
+a standing rule in `CLAUDE.md`: every listed edge case gets a test, or a written reason in the README for why
+it doesn't. The README's edge-case table maps each one to its tests, or to "not built". The tests were asked
+for as behaviour (what the user sees, what a function returns), with MSW for the network and no snapshots.
+
+**How they were checked.** Passing tests weren't taken as evidence. Each guarantee was broken on purpose, the
+suite had to fail, and the code was restored. Mutation sets recorded in the log:
 
 | Entry | Mutations | Result |
 |---|---|---|
 | 26 Oct — Catalogue data layer | 5 (`Math.round → Math.trunc`, `price.catch(0)`, `rating.default(...)`, ignoring `fallback: null`, `.loose()` letting `stock` through) | each failed ≥ 1 test |
 | 26 Oct — Product listing | 7 (debounce removed, push for search, debounce not cancelled on select, no URL sync, page not reset, page not clamped, case-sensitive search) | each failed ≥ 1 test |
 | 26 Oct — Cart domain and store | 7 (`getItem` → `null`, no write-skipping, duplicates allowed, eager hydration, no re-clamp, `localStorage.clear()` ignored, invalid payload kept) | each failed ≥ 1 test |
-| 27 Oct — Zod out of the initial client load | 2 (each original static Zod import reintroduced) | the cart one fails all 6 cart client modules |
+| 26 Oct — Zod out of the initial client load | 2 (each original static Zod import reintroduced) | the cart one fails all 6 cart client modules |
 | 27 Oct — Security | 1 (`style-src-attr` removed) | CSP E2E test fails with 50 violations |
 
-That's 22 recorded mutations. Bug fixes were also test-first (26 Oct — Duplicate product ids: "the duplicate
-test failed before the change").
+That's 22 recorded mutations. Each was reverted after the check, so the record is this log, not git. One
+was re-run on 27 Oct as a spot check: `Math.round → Math.trunc` in `toCents` still fails exactly four tests.
+Two bug fixes were done test-first: duplicate product ids (26 Oct — Duplicate product ids: "the duplicate test
+failed before the change") and the Escape race below. Commits are per task, not per red-green cycle. So git
+shows each test landing in the same commit as its fix, and the failing first run is recorded here, not in the
+history.
+
+Two tests were labelled for what they actually prove:
+- The dedupe-ordering test passed before the fix as well, so it's recorded as a regression guard, not as
+  evidence for the fix (26 Oct — Duplicate product ids).
+- `toCents(1.005)` deliberately has no test. Asserting 100 would lock in a floating-point quirk, and asserting
+  101 would be wrong (26 Oct — Catalogue data layer, Surprises).
 
 **`client-bundle-guard.test.ts`**: imports every `'use client'` module with `zod` mocked to throw, so a static
 Zod import anywhere in a client module's graph fails CI. It finds client modules by their directive, so new
-ones are covered (27 Oct — Zod out of the initial client load).
+ones are covered (26 Oct — Zod out of the initial client load).
 
 **A validation hazard, pinned with a test**: `z.url({ hostname })` takes a RegExp and doesn't anchor it, so
 `/fakestoreapi\.com/` would accept `https://fakestoreapi.com.evil.example/…`. The schema was anchored
@@ -152,23 +222,39 @@ updates state synchronously) accepted.
 captured the loading skeleton instead of the listing; the other was labelled "snapshot" but was serving cached
 live data. Both were deleted and re-taken rather than used (27 Oct — Responsive and Lighthouse verification).
 
-**Oversight in the other direction**: when drafting this summary, the brief supplied a "Before" code snippet
-for a hostname bug and attributions for three audits. The agent checked them against the log and `git log`,
-found that no commit ever contained that snippet and that the attributions weren't on record, and left `TODO`
-markers instead of writing them. The audits above were replaced, and the 26 Oct entry that held the snippet
-(now "Image hostname check (validation hazard)") corrected, as a result (27 Oct).
+**A correction to this log.** From `0bc955f` (26 Oct), the 26 Oct entry now titled "Image hostname check
+(validation hazard)" was headed "Human Audit". It showed an unanchored
+`z.string().url().regex(/https:\/\/fakestoreapi\.com\//)` as a "Before" that had been caught and fixed. No
+source commit ever contained that code: the schema was anchored from its first commit (`00744b6`). The agent
+found the mismatch on 27 Oct while checking this summary against `git log`, and flagged it instead of reusing
+the snippet. The entry was corrected in `5663a3d`, and the audits above use only what the history supports.
+The original wording is still in git.
 
 ### A Disagreement
 
-**`zod/mini` stacked on top of lazy-loading** (27 Oct — Zod out of the initial client load).
-- The agent prototyped and measured `zod/mini`: "a real cut (98 → 59 KB initial; total 395 → 355 KB) with the
-  same rules and tests". The full measurement table, including lazy-loading and the browser numbers, is in
-  `docs/performance-notes.md`.
-- The agent's first write-up proposed keeping it on the table: "B could be layered on top later to shrink the
-  on-demand chunk (about 40% smaller)" (`docs/performance-notes.md` at `421cd6c`).
-- The human declined ("user decision"): "~12 KB, after load, for returning visitors only, at the cost of
-  rewriting a trust-boundary schema." The README ("What I'd do with more time") gives the on-demand chunk as
-  30.8 KB transferred.
+**Duplicate product ids in a saved cart** (26 Oct — Cart domain and store, "Decisions"; the reasoning is in
+the spec's edge-case list).
+
+The cart brief said "Duplicate product ids: first wins, later ones dropped." `contracts/persisted-cart.md` said
+the opposite: reject the whole payload. The agent noticed the conflict, asked, and recommended the brief's
+rule:
+
+> First wins, drop later (Recommended): Follows your brief and matches the catalogue rule; one bad line
+> doesn't wipe a real cart. *(session transcript)*
+
+I overruled it. Catalogue data is third-party, and partial success is fine there: drop the bad item
+and keep the rest. A saved cart is data we wrote ourselves, so a duplicate means it was corrupted or tampered
+with. Nothing then says which line reflects what the shopper meant. Keeping the "first" one could silently
+change a quantity or price they never chose. So the same input gets two rules, depending on its source:
+
+```ts
+// src/features/cart/store/persisted-cart-schema.ts
+// Unlike the catalogue (first wins), duplicates here mean the payload can't be trusted at all.
+.refine((lines) => new Set(lines.map((l) => l.productId)).size === lines.length, 'duplicate productId'),
+```
+
+The cost is accepted on purpose: a cart with one duplicated line is lost entirely and starts empty. Both
+rules are tested.
 
 ---
 
@@ -197,7 +283,11 @@ markers instead of writing them. The audits above were replaced, and the 26 Oct 
 **Cosmetic findings, fixed separately (`a12f151`).**
 - *"Add  to cart"*: the visually hidden title split the label into two flex items, so `Button`'s `gap-2` showed
   as an 8 px space. The label is now one element: 3.4 px, one space, measured in Chromium.
-- *"All Categories"*: CSS `capitalize` made the select differ from its source string. Removed.
+- *"All Categories"*: CSS `capitalize` made the select differ from its source string. Removed. **No test**,
+  as an exception to the every-bug-fix-gets-a-test rule. The defect existed only in CSS rendering: jsdom
+  doesn't apply `text-transform`, so an RTL test reads "All categories" before and after the fix and can't fail
+  first. Asserting the class is gone would test implementation. The listing screenshots re-taken in the same
+  commit show the corrected "All categories".
 - *Reported, not changed*: two trash icons on a line at quantity 1 ("−" as remove, plus Remove), as the contract
   specifies.
 
@@ -287,9 +377,9 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 ---
 
-## 2026-10-27 — Zod out of the initial client load
+## 2026-10-26 — Zod out of the initial client load
 
-**Finding** (user): the client bundle for `/` was 427 KB against a 376 KB scaffold baseline, and `zod` was 98.54 KB of the initial load, about 3× all of `src/`.
+**Finding** (mine): the client bundle for `/` was 427 KB against a 376 KB scaffold baseline, and `zod` was 98.54 KB of the initial load, about 3× all of `src/`.
 
 **What the trace showed.** The import graph (`next analyze export`) had two client paths, not one. The expected path was the saved-cart schema on rehydrate. The unexpected one: `CatalogueFilters` reused the server's Zod URL parser to tidy its own form values. That's not a trust boundary (the server re-validates every URL), so the rules moved to a Zod-free `query/catalogue-query.ts`, with a parity test against the Zod parser over 500 generated cases.
 
@@ -301,7 +391,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 **Decisions**
 - Lazy-load, classic Zod. Validation is unchanged: same schema, same tests, every read.
-- Not stacking `zod/mini` on top (user decision): ~12 KB, after load, for returning visitors only, at the cost of rewriting a trust-boundary schema. Recorded in the README.
+- Not stacking `zod/mini` on top (my decision): ~12 KB, after load, for returning visitors only, at the cost of rewriting a trust-boundary schema. Recorded in the README.
 - Hand-written validation rejected: smallest gain over lazy-loading, and it leaves "Zod at every trust boundary".
 
 **Regression guard**: `client-bundle-guard.test.ts` imports every `'use client'` module with `zod` mocked to throw. Reintroducing either original import fails it (the cart one fails all 6 cart client modules). It finds client modules by their directive, so new ones are covered automatically.
@@ -320,7 +410,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 - *UTC in the title, labelled as UTC.* The server's time zone isn't the reader's. A test runs the formatter under `TZ=Asia/Tokyo` and gets the same result.
 - *It doesn't tick.* The age is correct when the page renders and is recomputed on any navigation or Retry. A live-updating clock would need client-side time, which reintroduces the hydration problem this avoids.
 
-**Softened (user request, same day)**: the notice is now informational rather than a warning. Changes: its own neutral `--info*` tokens instead of amber, a single slim row (46 px on desktop), an info icon, the second sentence in a muted tone, and Retry as a compact text button (36 px tall, above the 24 px minimum target). Measured contrast: light ink 9.6:1, muted 7.1:1, Retry 6.2:1; dark 11.7 / 6.7 / 9.6. Still `role="status"`. Amber `--notice*` stays for the per-line cart notes. `Button` gained `size="sm"` and a `ghost` variant.
+**Softened (my request, same day)**: the notice is now informational rather than a warning. Changes: its own neutral `--info*` tokens instead of amber, a single slim row (46 px on desktop), an info icon, the second sentence in a muted tone, and Retry as a compact text button (36 px tall, above the 24 px minimum target). Measured contrast: light ink 9.6:1, muted 7.1:1, Retry 6.2:1; dark 11.7 / 6.7 / 9.6. Still `role="status"`. Amber `--notice*` stays for the per-line cart notes. `Button` gained `size="sm"` and a `ghost` variant.
 
 **Verified in the browser**: a dev server with the API forced down (`dev-api-down` in `.claude/launch.json`: a dead `HTTPS_PROXY` with `NODE_USE_ENV_PROXY=1`). The server HTML and the hydrated DOM both read "…from 3 hours ago." with the same `title` and `dateTime`. No hydration warnings, no console errors.
 
@@ -348,14 +438,14 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 **Not done**
 
-- `CatalogueSync` (live price reconciliation): **scoped out** (user decision). The deployed demo usually serves the static snapshot, and fetching the catalogue in the layout would cost the static shell. Recorded in the README under "What I'd do with more time"; the domain and store support stays in place.
+- `CatalogueSync` (live price reconciliation): **scoped out** (my decision). The deployed demo usually serves the static snapshot, and fetching the catalogue in the layout would cost the static shell. Recorded in the README under "What I'd do with more time"; the domain and store support stays in place.
 - Full keyboard flow, focus containment, and axe checks belong to Playwright (next).
 
 ---
 
 ## 2026-10-26 — Announce quantities reduced on load
 
-**Decision** (user): a silent reduction is a correctness surprise. The shopper left 8 and comes back to 4. Announce it through the polite live region on load, and show a dismissible per-line note, "Reduced to 4 — limited availability". Not a blocking dialog.
+**Decision** (mine): a silent reduction is a correctness surprise. The shopper left 8 and comes back to 4. Announce it through the polite live region on load, and show a dismissible per-line note, "Reduced to 4 — limited availability". Not a blocking dialog.
 
 **What landed**
 
@@ -368,7 +458,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 **Verified in the browser** (dev server): with a saved cart of 8 × product 4 (simulated availability 5), the live region read "… reduced from 8 to 5 — limited availability." once, and storage held 5. Reloading was silent. No console errors.
 
-**Wording revised** (user decision, same day): "limited availability" didn't say the stock is simulated. All availability copy now uses R8's wording with the demo qualifier: "Reduced to 4 — only 4 available (demo inventory)", "Only N available (demo inventory)". The policy cap stays "Limit 10 per order", with no qualifier, because it's real. One `DEMO_INVENTORY` constant feeds every availability string, and a test checks that each availability message contains it and no policy message does. The quotes above show the original wording.
+**Wording revised** (my decision, same day): "limited availability" didn't say the stock is simulated. All availability copy now uses R8's wording with the demo qualifier: "Reduced to 4 — only 4 available (demo inventory)", "Only N available (demo inventory)". The policy cap stays "Limit 10 per order", with no qualifier, because it's real. One `DEMO_INVENTORY` constant feeds every availability string, and a test checks that each availability message contains it and no policy message does. The quotes above show the original wording.
 
 **Docs**: R6 and data-model §6 now match the five differences from the previous entry. §8 gains `quantityNotices`, and the copy table gains the reduced-on-load rows.
 
@@ -386,7 +476,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 **Decisions**
 
-- *Duplicate ids in a saved cart invalidate the whole payload* (user decision, following persisted-cart.md). The catalogue keeps "first wins". The reasoning is recorded in the spec.
+- *Duplicate ids in a saved cart invalidate the whole payload* (my decision, following persisted-cart.md). The catalogue keeps "first wins". The reasoning is recorded in the spec.
 - *Storage returns an empty cart, never `null`.* Reading zustand's `persist` source showed that `null` from `getItem` leaves the current state in place. A cart cleared or corrupted in another tab would then survive in this one. R6's wording said `null`.
 - *Write-skipping in the storage.* `persist` calls `setItem` on every `setState`, including the drawer and announcements, and when `hydrated` is set. The storage skips a write when the serialised cart equals what's stored, or when the cart is empty and there's no key. Serialisation uses a fixed key order so equal carts produce equal strings. Result: exactly one write per cart change, and rehydrating never echoes back to other tabs.
 - *Actions read `get()` at call time*, not the functional `set(state => …)` form R6 describes. zustand updates synchronously, so the guarantee is the same: rapid actions each apply to the previous result. It also lets no-op outcomes skip `set` entirely: no re-render, no write.
@@ -400,7 +490,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 **Not done yet**
 
 - Components: `CatalogueSync` (calls `reconcile` only when `source === 'live'`), `CartAnnouncer`, `AddToCartControl`, `CartButton`, `CartDrawer`, `CartLineItem`, announcement copy.
-- ~~Re-clamped quantities aren't announced~~ Done (user decision): see the next entry.
+- ~~Re-clamped quantities aren't announced~~ Done (my decision): see the next entry.
 
 ---
 
@@ -416,10 +506,10 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 **Decisions**
 
-- *Testing split (user decision).* Jest can't render the async page, so behaviour is tested at two levels. Pure functions cover filter, sort, pagination and the URL. RTL renders the synchronous components with props. The data path keeps its MSW tests. Page-level checks wait for Playwright. A deterministic URL round-trip test runs 1,000 generated queries with a seeded PRNG; it avoids adding fast-check.
+- *Testing split (my decision).* Jest can't render the async page, so behaviour is tested at two levels. Pure functions cover filter, sort, pagination and the URL. RTL renders the synchronous components with props. The data path keeps its MSW tests. Page-level checks wait for Playwright. A deterministic URL round-trip test runs 1,000 generated queries with a seeded PRNG; it avoids adding fast-check.
 - *Category and sort are controlled inputs in a client component*, not server-rendered selects. An uncontrolled `defaultValue` doesn't follow the URL on Back, and remounting with a `key` drops keyboard focus on every change. State adopts the URL during render when it changes. The one exception is in-progress search text the URL already reflects: "gold " stays "gold " even though the URL says `q=gold`.
 - *One owner for the pending search.* Choosing a category cancels the pending debounced search and pushes a URL that includes the typed text. Otherwise the stale debounce would fire afterwards and replace the new URL with old values.
-- *`<form role="search">` instead of `<search>`.* jsdom doesn't recognise `<search>`: React logs an error and Testing Library can't find the landmark. Older browsers and assistive tech don't map it either. contracts/ui-components.md and research.md have been updated to match (user decision), along with the client-component filters and the static-shell change in R1.
+- *`<form role="search">` instead of `<search>`.* jsdom doesn't recognise `<search>`: React logs an error and Testing Library can't find the landmark. Older browsers and assistive tech don't map it either. contracts/ui-components.md and research.md have been updated to match (my decision), along with the client-component filters and the static-shell change in R1.
 - *`loading="eager"` + `fetchPriority="high"` for the first row*, not `priority`. Next 16 deprecated `priority`.
 - *The filter controls are not in the static shell* (research R1 said they would be). They need the catalogue's categories and the URL's values, so they render inside the `loading.tsx` boundary; the shell is the header and the heading. The build reports `/` as a partial prerender.
 - ~~*`error.tsx` imports two components by deep path.*~~ Fixed: `features/catalog/client.ts` is a client-safe public surface (re-exported by `index.ts`), and `error.tsx` imports from it. Checked by building with `error.tsx` pointed at the full index: the build fails (`"use cache"` in a Client Component, via `get-catalogue.ts`). So the boundary is enforced by the build, not just by convention.
@@ -440,7 +530,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 ## 2026-10-26 — Duplicate product ids
 
-**Decision** (user): keep the first occurrence of an id, drop later ones, and warn in dev. Cart lines are keyed by product id, so two products sharing one would collide in the cart.
+**Decision** (mine): keep the first occurrence of an id, drop later ones, and warn in dev. Cart lines are keyed by product id, so two products sharing one would collide in the cart.
 
 **Detail worth recording**: deduplication happens *after* schema validation. If it ran first, an invalid item could claim an id and cause a later valid item with that id to be dropped too. A separate test pins this ordering. It passed before the fix too, and is there to stop a regression to dedupe-first.
 
