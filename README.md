@@ -80,6 +80,9 @@ requests from cloud hosts, which would take the deployed demo down with it. So t
 of the API, saved in the repo and checked with the same validation as live data. A small notice says it's a
 saved copy and how old it is, with a Retry button. You only see the error page (with its own Retry) if the
 snapshot is unusable too. So the deployed demo stays usable whether or not the API answers its host.
+In practice fakestoreapi's catalogue is effectively static, so the snapshot and a live response are near-identical
+and serving the saved copy costs almost nothing. The design doesn't rely on that: the notice, the capture date, and
+the revalidation all treat the data as volatile, which is the right assumption for a real commerce catalogue.
 
 **The 10-per-order limit is real; "available" counts are not.** The API has no stock data. The per-line cap of
 10 is a store policy. Availability below that comes from a *simulated* inventory (`src/lib/inventory.ts`):
