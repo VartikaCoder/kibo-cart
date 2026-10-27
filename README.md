@@ -211,6 +211,11 @@ left it out.
 
 ### Smaller things I noticed and left
 
+- **Retry doesn't report its outcome.** Retry on the snapshot notice expires the cached catalogue and re-renders.
+  If the API is still unreachable, the app falls back to the snapshot again and the identical notice comes back.
+  That's correct, but it looks exactly like the button doing nothing. It should say what happened through the
+  status region ("Still unavailable, showing the saved copy" or "Live catalogue restored"). I found this by
+  clicking through the deployed site.
 - **Product images are bigger than they need to be on phones.** The cards ask for full-width images, but
   portrait products are shown narrower, so a 370 × 640 image ends up displayed at 191 × 330. The fix is a
   narrower `sizes` value on the cards. I know what it is and haven't done it yet.
