@@ -8,25 +8,34 @@ The feature list is deliberately short. Most of the effort went into the parts t
 arithmetic, untrusted data, what happens when the API is down, keyboard and screen-reader use, and tests that
 fail when something is actually wrong.
 
-**Live:** https://kibo-cart.vercel.app
-**Repository:** https://github.com/VartikaCoder/kibo-cart
+**Live:** <https://kibo-cart.vercel.app>\
+**Repository:** <https://github.com/VartikaCoder/kibo-cart>
 
 ## Running it
 
 You'll need Node 24 (there's an .nvmrc).
 
+```bash
 npm ci
 npm run dev            # http://localhost:3000, live API
+```
+
 The checks CI runs:
 
+```bash
 npm run lint
 npm run typecheck      # generates Next's route types first, so it works on a fresh clone
 npm run test:cov       # Jest: unit and component tests, with coverage thresholds
 npm run build
+```
+
 End-to-end tests run against a real production build with fixed fixture data, so a flaky API can't fail them:
 
+```bash
 npm run e2e:install    # once: Playwright's Chromium
 npm run e2e
+```
+
 CATALOGUE_SOURCE=fixture serves that same fixture data in any mode. Any other value is treated as a mistake:
 loading the catalogue fails loudly instead of quietly falling back to live data.
 
@@ -196,7 +205,7 @@ Deliberately scoped out. The cart doesn't yet react to catalogue changes after a
 - **What already exists:** the pure reconcileWithCatalogue() (tested), the store's reconcile() action, and
   the priceNotices / unavailableIds state, with totals already excluding unavailable lines. What's missing is
   a client leaf that calls reconcile() only when source === 'live', plus rendering those two line states.
-  I'd load the price index in its own <Suspense> boundary so the shell stays static.
+  I'd load the price index in its own `<Suspense>` boundary so the shell stays static.
 
 This also covers the spec's "Product no longer exists" edge case, which has no UI test for the same reason.
 
