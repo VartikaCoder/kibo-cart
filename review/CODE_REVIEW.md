@@ -141,4 +141,4 @@ Out of scope, but noticed: both versions put `aria-live="polite"` on the quantit
 
 ## Tooling
 
-Issues 1 and 2 are caught by `react-hooks/set-state-in-effect` under the current `eslint-plugin-react-hooks` v7 config. Issues 3 and 4 are not caught by lint. Both files pass lint and typecheck.
+Issues 1 and 2 are caught by `react-hooks/set-state-in-effect` under the current `eslint-plugin-react-hooks` v7 config. Issues 3 and 4 are not caught by lint. Both files pass lint and typecheck, but `product-card.bad.tsx` only passes because it suppresses `react-hooks/set-state-in-effect` twice, on the two effects under review. Without those `eslint-disable-next-line` comments, lint flags both effects.
