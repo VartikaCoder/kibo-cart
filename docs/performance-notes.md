@@ -69,3 +69,8 @@ the performance score lists all three, and the other columns come from the media
   the gap. Not isolated further. Deployed LCP (2.4 s) is inside the 2.5 s "good" threshold; local (3.2 s) isn't.
 - **Remaining opportunities (both targets, not acted on):** image delivery (~123 KiB estimated savings), unused
   JavaScript (~26 KiB), legacy JavaScript (~14 KiB), and render-blocking requests (~120 ms).
+  These were measured and deliberately not acted on: with deployed performance at 98 and LCP at 2.4 s (within
+  "good"), the remaining gains didn't justify the work. Most of the image saving is ours to fix, not
+  third-party: the cards' `sizes` hint requests full-width images that `object-contain` then shows narrower for
+  portrait products (e.g. 370 × 640 served, 191 × 330 shown), and the unused JavaScript is 36% of one
+  first-party chunk.
