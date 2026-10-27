@@ -95,6 +95,13 @@ the performance score lists all three, and the other columns come from the media
   before/after here. With LCP already inside "good", I chose to leave it rather than make an unmeasured change
   late. It's listed in the README under "What I'd do with more time".
 
+## Why the deployed site serves the snapshot
+
+On Vercel, the live fetch to fakestoreapi fails and the app serves the bundled snapshot. To rule out a regional
+block, I changed the Vercel function region from the default to Mumbai and redeployed. The live fetch still failed,
+and the snapshot was still served, so the failure isn't specific to the default region. I've since reverted to the
+default region, which is what the Lighthouse numbers above were measured against.
+
 ## What re-renders when the cart changes (SC-005)
 
 **Measured.** Clicking "Add to cart" on one product card re-rendered no `ProductCard` and no part of the
