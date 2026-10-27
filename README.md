@@ -90,10 +90,23 @@ deterministic per product, so it's the same on server and client. Every message 
 "Only 5 available (demo inventory)". A real inventory API would replace that one file.
 
 **The edge case I chose not to handle: merging concurrent cart edits across tabs.** This is the one edge case I
-left unhandled on purpose. If you change the cart in two tabs, the most recent write wins and the other tab updates to match. I didn't try
-to merge. A cart is small, edits in two tabs at once are rare, and a
-merge would have to guess intent (did you remove that item, or just not add it in this tab?). Always showing the
-latest saved state is easier to predict than a clever merge.
+left unhandled on purpose. If you change the cart in two tabs, the most recent write wins and the other tab
+updates to match.
+
+I didn't try to merge, because a merge needs the shopper's intent, and the browser can't recover it. Take a line
+that is in one tab's cart and missing from the other's. It could be a deliberate removal in one tab, or an
+addition the other tab never saw. Those need opposite resolutions, and the two saved carts look the same either
+way. A client-side merge can only guess between them, and a wrong guess silently changes someone's cart.
+
+The place that can settle it is the server at checkout. It has to re-price every line and re-check availability
+anyway, because nothing in `localStorage` can be trusted (see
+[security notes §6](docs/security-notes.md#6-the-limits-of-client-side-validation)). This demo has no checkout,
+but that is where the authority belongs. So last-write-wins in the browser, with the server authoritative at
+checkout, is the right design for a cart, not a shortcut. Each tab always shows one coherent state, and
+correctness is enforced where it can be.
+
+How often it happens is a footnote. Each tab picks up the other's writes within a second (SC-007), so an edit is
+lost only when both tabs write before either has heard from the other.
 
 **A large catalogue is paginated, not virtualized.** The listing shows 12 products per page, and the page
 number is in the URL. For a storefront, being able to share a link to page 3 of "electronics, cheapest first",
