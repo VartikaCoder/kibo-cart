@@ -13,20 +13,39 @@ session itself, not from files in the repo.
 
 ### AI Strategy
 
+**The main direction was set before the agent wrote any code.** Choosing between options the agent offered came
+later and mattered less. What shaped the output most was the set of constraints it worked under from the start.
+`CLAUDE.md` holds the standing rules; `.specify/memory/constitution.md` holds the principles;
+`specs/001-shopping-cart/` (spec, plan, research, data model) is the authoritative spec; and `contracts/`
+defines the interfaces (catalogue API, persisted cart, UI components, URL params). Concrete effects on what the
+agent produced:
+
+- *Ask before adding any dependency.* This is the clearest case. Before writing any code, the agent stopped to
+  ask before installing Zod, Jest and MSW. It asked again before the React Testing Library / jsdom packages
+  and before Zustand (session transcript). One request was declined: `@testing-library/user-event`. So
+  component tests use RTL's `fireEvent`, and real keyboard behaviour is tested in Playwright instead
+  (research R11, plan "Constraint: deps").
+- *Money as integer cents.* `toCents` in `lib/money.ts` is the only float-to-cents conversion, and prices are
+  branded `Cents` from there on. A test converts every two-decimal price up to $9,999.99 exactly.
+- *No invented `stock` field.* The API schema mirrors the API and strips unknown keys; a mutation letting
+  `stock` through fails a test. Simulated availability lives apart in `lib/inventory.ts`, separate from the
+  real 10-per-order policy, and `LineLimit.reason` says which one applied.
+- *No `dangerouslySetInnerHTML`.* There is none in `src/`, and the rule later became a lint error
+  (`react/no-danger`, 27 Oct — Security).
+- *Test behaviour, not implementation.* Network tests use MSW handlers rather than mocking `fetch` or our
+  modules, and components are queried by role and accessible name.
+- *Feature-folder dependency rules.* Because of them, the agent reported its own deep import in `error.tsx` as
+  a departure from the rule rather than leaving it unremarked (Human Audit 3).
+- *Stop and ask when sources disagree.* The agent stopped on the data-layer prompt vs the contract (below), and
+  on the duplicate-id rule (A Disagreement).
+
 Direction and review were themselves AI-assisted: a second session acted as a sounding board for scoping and
 for reviewing the agent's output. Where an entry says I required or rejected something, the decision was mine;
 the reasoning was often worked out in that second session. The two disagreed more than once — the data-layer
 prompt contradicted the generated plan, and at least one claim from the review session turned out to be
 unsupported and was removed (Verification, "A correction to this log").
 
-**How context was supplied.**
-- `CLAUDE.md` holds the standing constraints: stack, folder and dependency rules, money as integer cents, the
-  stock/inventory split, state, security, accessibility, testing rules, and how the agent should work.
-- `.specify/memory/constitution.md` holds the principles. `specs/001-shopping-cart/` (spec, plan, research,
-  data model) is the authoritative spec, and `specs/001-shopping-cart/contracts/` defines the interfaces
-  (catalogue API, persisted cart, UI components, URL params). `CLAUDE.md` says to stop and ask when it and the
-  spec disagree.
-- These files were in use, but not yet tracked, from the start. They were first committed in `e921a99`
+**When the constraints existed.** These files were in use, but not yet tracked, from the start. They were first committed in `e921a99`
   (26 Oct, 20:26), 33 minutes after the first data-layer commit, `00744b6` (19:53). Two things show they
   existed earlier. `00744b6` already cites `contracts/catalogue-api.md` and data-model §1. And the agent's own
   conduct: at 19:48, before writing any code, it stopped to ask before installing Zod, Jest and MSW, and
@@ -34,10 +53,6 @@ unsupported and was removed (Verification, "A correction to this log").
   installing (the constitution asks only for a written justification); `CLAUDE.md` does ("Do not add a
   dependency without asking first"). That question is in the session transcript, not in git: contemporaneous,
   but circumstantial for anyone who has only the repository.
-- The dependency rule ("Do not add a dependency without asking first…", `CLAUDE.md`; "No new dependency without
-  a written justification", constitution) made every install a stop-and-ask point. In the session transcript
-  the agent asked before installing Zod/Jest/MSW, the four React Testing Library / jsdom packages, and
-  Zustand.
 
 **How prompting differed by task type.**
 - *Architecture*: the agent presents options and trade-offs, and I decide (`CLAUDE.md`: "present the
@@ -85,8 +100,10 @@ structural: performance, correctness, architecture.
 **1. Zod in every first page load (performance).** Details: 26 Oct — Zod out of the initial client load;
 `docs/performance-notes.md`.
 
-I found it: the client bundle for `/` was 427 KB against a 376 KB scaffold baseline, and `zod` alone
-was 98.54 KB of the initial load. The agent had put Zod on the client in two places.
+Validation belongs where untrusted data comes in, and it should be downloaded only when that data exists. The
+agent had put Zod on the client in two places that broke this. One wasn't a trust boundary at all, and the
+other loaded on every visit, whether or not there was a saved cart to check. I found it in the bundle: `/`
+was 427 KB against a 376 KB scaffold baseline, and `zod` alone was 98.54 KB of the initial load.
 
 *Before*: the filter form reused the server's Zod URL parser to tidy its own values
 (`src/features/catalog/components/catalogue-filters.tsx`, before `db29eda`):
@@ -137,9 +154,10 @@ function afterHydration() {
 }
 ```
 
-The agent raised this as an open question. I required three things: announce it through the live
-region, show a dismissible note on the line, and never block with a dialog. Changing a shopper's data
-silently is a trust problem: "The shopper left 8 and comes back to 4".
+Changing a shopper's data without telling them is a trust problem: "The shopper left 8 and comes back to 4".
+Lowering the quantity was right, since the saved one can exceed what's allowed now. Doing it silently was not.
+The agent raised this as an open question. From that reasoning I required three things: announce it through
+the live region, show a dismissible note on the line, and don't block with a dialog.
 
 *After*: the reductions are returned and announced:
 
@@ -152,8 +170,8 @@ if (reductions.length > 0) onQuantityReduced?.(reductions);
 **3. A broken dependency rule, documented instead of fixed (architecture).** Details: 26 Oct — Product listing
 ("Decisions").
 
-`CLAUDE.md` says code outside a feature reaches it only through its public entry point, never by deep paths.
-The agent's error boundary deep-imported two catalogue components. It explained why in a comment and logged
+A dependency rule that is kept as a documented exception wears away. `CLAUDE.md` says code outside a feature reaches it only through its public entry point, never by deep
+paths. The agent's error boundary deep-imported two catalogue components. It explained why in a comment and logged
 it as a decision (`0bc955f`).
 
 *Before*:
@@ -171,8 +189,7 @@ The reason was real: `index.ts` exports server-only code, which a Client Compone
 catch this; the agent reported it. Its report listed five departures from the plan for me to check and asked
 for a decision on the first three (update the contracts, or revert). This was number 4, described with a
 possible fix ("A separate client-safe entry point would fix this") but left in place. My part was the
-decision: fix it rather than keep it as a documented exception, because that is how a dependency rule wears
-away. My reply, in the session transcript: "Fix 4: add a client-safe entry point so error.tsx imports through
+decision, for the reason above: fix it rather than keep the exception. My reply, in the session transcript: "Fix 4: add a client-safe entry point so error.tsx imports through
 a public surface, not deep paths." The fix (`66a4e5c`, 20:55) landed four minutes after the listing commit
 (`0bc955f`, 20:51). It gives the feature a second public surface, `features/catalog/client.ts`, for Client
 Components; `index.ts` re-exports it.
@@ -251,17 +268,21 @@ The original wording is still in git.
 **Duplicate product ids in a saved cart** (26 Oct — Cart domain and store, "Decisions"; the reasoning is in
 the spec's edge-case list).
 
-The cart brief said "Duplicate product ids: first wins, later ones dropped." `contracts/persisted-cart.md` said
-the opposite: reject the whole payload. The agent noticed the conflict, asked, and recommended the brief's
-rule:
+The same input, a duplicated product id, deserves different rules in different layers, because the two sources
+differ in what they let you infer. Catalogue data is third-party and partially usable: one bad item shouldn't
+cost the shopper the rest of the catalogue, so drop it and keep the rest. A saved cart is data we wrote
+ourselves, so a duplicate means it was corrupted or tampered with. Nothing then says which line reflects what
+the shopper meant, and keeping the "first" one could silently change a quantity or price they never chose.
+So a corrupted cart gives no safe basis for guessing, and the whole payload is rejected.
+
+That is where the agent and I disagreed. The cart brief said "Duplicate product ids: first wins, later ones
+dropped." `contracts/persisted-cart.md` said the opposite: reject the whole payload. The agent noticed the
+conflict, asked, and recommended the brief's rule:
 
 > First wins, drop later (Recommended): Follows your brief and matches the catalogue rule; one bad line
 > doesn't wipe a real cart. *(session transcript)*
 
-I overruled it. Catalogue data is third-party, and partial success is fine there: drop the bad item
-and keep the rest. A saved cart is data we wrote ourselves, so a duplicate means it was corrupted or tampered
-with. Nothing then says which line reflects what the shopper meant. Keeping the "first" one could silently
-change a quantity or price they never chose. So the same input gets two rules, depending on its source:
+I overruled it for the reason above. Two rules, by source:
 
 ```ts
 // src/features/cart/store/persisted-cart-schema.ts
