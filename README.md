@@ -54,7 +54,7 @@ Next.js (App Router) with TypeScript, Tailwind, Zustand for the cart, and Zod wh
 
 ## Decisions worth knowing about
 
-**When the API is down, you get yesterday's catalogue, not an error.** fakestoreapi has been seen refusing
+**When the API is down, you get a saved copy of the catalogue, not an error.** fakestoreapi has been seen refusing
 requests from cloud hosts, which would take the deployed demo down with it. So the app falls back to a snapshot
 of the API, saved in the repo and checked with the same validation as live data. A small notice says it's a
 saved copy and how old it is, with a Retry button. You only see the error page (with its own Retry) if the
@@ -65,10 +65,23 @@ snapshot is unusable too. When I checked the deployed site on 27 Oct, it was ser
 deterministic per product, so it's the same on server and client. Every message based on it says so:
 "Only 5 available (demo inventory)". A real inventory API would replace that one file.
 
-**Two tabs: the last change wins.** If you change the cart in two tabs, the most recent write wins and the
-other tab updates to match. I didn't try to merge. A cart is small, edits in two tabs at once are rare, and a
+**Deliberately not handled: merging cart edits across tabs.** This is the edge case I chose not to solve.
+If you change the cart in two tabs, the most recent write wins and the other tab updates to match. I didn't try
+to merge. A cart is small, edits in two tabs at once are rare, and a
 merge would have to guess intent (did you remove that item, or just not add it in this tab?). Always showing the
 latest saved state is easier to predict than a clever merge.
+
+**A large catalogue is paginated, not virtualized.** The listing shows 12 products per page, and the page
+number is in the URL. For a storefront, being able to share a link to page 3 of "electronics, cheapest first",
+use the Back button, and have search engines crawl each page matters more than infinite scrolling.
+Virtualization suits admin grids, where none of that applies and you need thousands of rows on one screen.
+Pagination also keeps the payload small: only the current page is sent to the browser.
+
+**The cart is saved in `localStorage`.** It's the only option that both survives closing the browser and fires
+a `storage` event in other tabs, which is how the tabs stay in sync. `sessionStorage` is per-tab and gone when
+the tab closes. Cookies get sent with every request to a server that has no use for them, and are capped at
+about 4 KB. IndexedDB is asynchronous, adds a lot of code for a few kilobytes, and has no cross-tab event, so
+sync would need a second mechanism.
 
 **Money is whole cents.** Prices are converted to integer cents once, when the API data comes in, and formatted
 only for display. Totals are calculated from the lines every time and never stored.
@@ -113,6 +126,12 @@ old-format fixture, and a note here. It's still version 1.
 About 360 Jest tests (domain, store, schemas, components) and 8 Playwright tests that only cover what jsdom
 can't: real storage events between tabs, real focus behaviour in the modal, axe, and the security headers.
 Network calls are mocked with MSW, never by mocking our own modules.
+
+The coverage threshold is 80%, enforced in CI; actual coverage is about 99% of lines and 96% of branches. The
+effort went where bugs are silent and expensive: the cart rules, money, and every validation boundary (API,
+saved cart, URL). Route files in `src/app` are left out of coverage and checked end to end instead. I didn't
+chase 100% on UI wiring, because tests written only to execute glue code end up asserting structure rather than
+behaviour: they break on harmless refactors and catch little.
 
 Throughout, I checked tests by breaking the code they protect and making sure they failed. The developer log
 records 22 of those checks. There's also a guard test that fails if any client component imports Zod directly,
