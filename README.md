@@ -73,6 +73,44 @@ Next.js (App Router) with TypeScript, Tailwind, Zustand for the cart, and Zod wh
   code) and a client.ts (safe for Client Components). The build fails if a Client Component pulls in server
   code.
 
+## The design-system layer
+
+src/components/ui holds the primitives every feature builds on:
+
+- **Button**: variants and sizes, shared with links styled as buttons.
+- **IconButton**: icon-only, with a required accessible name.
+- **QuantityStepper**: − / input / +, with the limit reason linked to "+".
+- **Drawer**: side panel on the native modal dialog; contains and restores focus.
+- **Rating**: decorative stars, meaning in screen-reader text.
+- **Badge**: small pill label.
+- **Skeleton**: loading placeholder, still under reduced motion.
+- **VisuallyHidden**: text for screen readers only.
+- **icons**: decorative SVGs, always aria-hidden.
+
+**They're a library, not components lifted out of the features.** Nothing in components/ui knows about products
+or carts. QuantityStepper takes a value, a max, the labels and the limit message, not a cart line; the caller
+validates what's typed and decides what the limit means. Drawer takes a title and children and doesn't know
+it holds a cart. This is a written rule in CLAUDE.md ("components/ui knows nothing about products or carts"),
+not a lint rule, and today no file in components/ui imports from features or lib. What it buys: the cart could
+be replaced without touching any of them.
+
+**Tokens are defined once**, in src/app/globals.css: values on :root, overridden for dark mode via
+prefers-color-scheme, and exposed to Tailwind through @theme. Components use the generated classes
+(bg-surface, text-ink-muted). The exceptions are the dialog backdrop and the white behind product photos. One
+global :focus-visible rule draws every focus ring, so no component needs its own. Besides the base set, there
+are two message sets: --info* for the snapshot notice and --notice* for notes on cart lines. The notice's
+contrast was measured, not assumed: ink 9.6:1, muted 7.1:1 and Retry 6.2:1 in light mode, and 11.7, 6.7 and 9.6
+in dark. The other pairs are annotated as meeting AA but weren't measured individually.
+
+**Some rules live in the types.** IconButton's props require a label and leave out aria-label, so an icon-only
+button without a name fails typecheck instead of waiting for review. QuantityStepper requires its three labels
+the same way.
+
+**It grew from real uses, not up front.** Button gained size="sm" and the ghost variant when the snapshot notice
+needed a compact, low-emphasis Retry, and InfoIcon arrived in the same change. Button gained a ref prop when
+the cart needed to move focus back to "Add to cart" after a line is removed. Each still has exactly that one
+use.
+
 ## Decisions worth knowing about
 
 **When the API is down, you get a saved copy of the catalogue, not an error.** fakestoreapi has been seen refusing
@@ -246,6 +284,10 @@ left it out.
   planned and not built; both paths are covered by unit and component tests instead.
 - **Real interaction in component tests.** I didn't add @testing-library/user-event, so keyboard and pointer
   behaviour is only exercised for real in Playwright.
+- **No Storybook.** I cut it at the start of the 48 hours. It means setup, a story per component, and somewhere to
+  host it, and it verifies nothing the component tests don't already. On that budget it lost to the
+  accessibility pass and the E2E suite. On a team I'd add it for the states a test doesn't naturally show: Button
+  in every variant, QuantityStepper at its limit with the reason visible, the Drawer open and empty.
 - **A screen-reader pass.** Everything is built and tested against roles, names, and live regions, but I haven't
   sat down with VoiceOver or NVDA and used it.
 - **Two buttons with the same name.** At quantity 1, a cart line has both "−" (which removes) and a trash button,
