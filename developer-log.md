@@ -5,6 +5,226 @@ These are notes; the spec, plan, and ADRs are the authoritative documents.
 
 ---
 
+## Summary
+
+*Draft, to be rewritten. It summarises the dated entries below; references are given as "date — heading".
+Quotes marked "session transcript" come from the AI coding session itself, not from files in the repo.*
+
+### AI Strategy
+
+**How context was supplied.**
+- `CLAUDE.md` holds the standing constraints: stack, folder and dependency rules, money as integer cents, the
+  stock/inventory split, state, security, accessibility, testing rules, and how the agent should work.
+- `.specify/memory/constitution.md` holds the principles. `specs/001-shopping-cart/` (spec, plan, research,
+  data model) is the authoritative spec, and `specs/001-shopping-cart/contracts/` defines the interfaces
+  (catalogue API, persisted cart, UI components, URL params). `CLAUDE.md` says to stop and ask when it and the
+  spec disagree.
+- The dependency rule ("Do not add a dependency without asking first…", `CLAUDE.md`; "No new dependency without
+  a written justification", constitution) made every install a stop-and-ask point. In the session transcript
+  the agent asked before installing Zod/Jest/MSW, the four React Testing Library / jsdom packages, and
+  Zustand.
+
+**How prompting differed by task type.**
+- *Architecture*: options and trade-offs presented, the human decides (`CLAUDE.md`: "present the options
+  briefly and wait"). The decisions are marked "(user decision)" in the entries: the testing split (26 Oct —
+  Product listing), duplicate-id rules (26 Oct — Cart domain and store), scoping out `CatalogueSync` (26 Oct —
+  Cart UI components), and not stacking `zod/mini` (27 Oct — Zod out of the initial client load).
+- *Implementation*: tight constraints plus the schemas and contracts (data model, `contracts/`).
+- *Tests*: describe behaviour and ban implementation detail (`CLAUDE.md` testing rules: test behaviour not
+  implementation, `getByRole` before `getByTestId`, no snapshot tests, MSW not module mocks, never weaken a
+  test to make it pass).
+
+**Iterated prompt: the catalogue data layer** (26 Oct — Catalogue data layer, "Plan wins over the task
+prompt, with additions"). Both versions are from the session transcript.
+
+*Version 1*, the task prompt (item 4 of 6):
+
+> `src/features/catalog/api/get-products.ts` — fetch with revalidate, validate with Zod, drop invalid items
+> (log in dev), and the fallback chain live → cached → snapshot → error. Return a discriminated result that
+> tells the caller the source used and the reason for any fallback. The fallback must be injectable so tests
+> can still exercise the real error path.
+
+This contradicted `contracts/catalogue-api.md` on naming (`fetchCatalogue()`), structure (a `Catalogue`
+result, caching in a separate `'use cache'` wrapper), and error handling (`CatalogueUnavailableError` thrown
+when every source fails). The agent stopped, set out the conflict, and offered three options. The human chose
+this one:
+
+*Version 2*, the option chosen:
+
+> **Plan, plus brief's additions (Recommended).** fetchCatalogue() per the contract, with an added
+> `fallbackReason` on snapshot results and an injectable snapshot loader. It throws CatalogueUnavailableError
+> so error.tsx works. 'Cached' stays with the 'use cache' wrapper, so there's no module-level memory cache.
+> Plan's file names.
+
+### Human Audit
+
+**1. Duplicate product ids in a saved cart (data integrity at a trust boundary).** Details: 26 Oct — Cart
+domain and store ("Decisions"); reasoning in the spec's edge-case list.
+
+The cart brief said "Duplicate product ids: first wins, later ones dropped." The agent noticed
+`contracts/persisted-cart.md` said the opposite, asked, and recommended the brief's rule:
+
+> First wins, drop later (Recommended): Follows your brief and matches the catalogue rule; one bad line
+> doesn't wipe a real cart. *(session transcript)*
+
+The human rejected that and required the contract's rule. A corrupted cart is our own data gone wrong, so it
+gives no safe basis for guessing the shopper's intent. Third-party API data is different: partial success is
+fine there. The result is two rules for the same input, both in the spec's edge-case list:
+
+```ts
+// src/features/cart/store/persisted-cart-schema.ts
+// Unlike the catalogue (first wins), duplicates here mean the payload can't be trusted at all.
+.refine((lines) => new Set(lines.map((l) => l.productId)).size === lines.length, 'duplicate productId'),
+```
+
+**2. Prompt vs plan on the catalogue data layer (architectural).** Details: 26 Oct — Catalogue data layer.
+The task prompt and the plan contradicted each other on naming, structure, and error handling (see AI
+Strategy above). The human arbitrated: the plan's structure wins, plus the two requirements from the prompt
+that the plan lacked, `fallbackReason` and an injectable fallback. The agent had recommended this option; the
+injectable fallback is the substantive human contribution, written into the original prompt. Without it, a
+working snapshot makes every failure look like success, and `error.tsx` can never be tested:
+
+```ts
+// src/features/catalog/api/fetch-catalogue.ts
+export interface FetchCatalogueOptions {
+  /** `null` disables the fallback, so a live failure surfaces as `CatalogueUnavailableError`. */
+  fallback?: FallbackLoader | null;
+  …
+}
+```
+
+**3. Silent quantity reductions on load (correctness/accessibility).** Details: 26 Oct — Announce quantities
+reduced on load.
+
+As first committed (`ebff036`), the store clamped saved quantities to current limits and told no one:
+
+```ts
+function afterHydration() {
+  const state = store.getState();
+  const { cart } = domain.clampToLimits(state, (productId) => limitFor(productId).max);
+  store.setState(cart === state ? { hydrated: true } : { hydrated: true, lines: cart.lines });
+}
+```
+
+The agent raised this as an open question. The human required that it be announced through the live region,
+plus a dismissible per-line note and no blocking dialog, because changing a shopper's data silently is a
+trust problem ("The shopper left 8 and comes back to 4"). Now the reductions are returned and announced:
+
+```ts
+// src/features/cart/store/cart-persistence.ts
+const reductions = store.getState().completeHydration();
+if (reductions.length > 0) onQuantityReduced?.(reductions);
+```
+
+### Verification
+
+**Method**: AI-generated tests cover the edge cases. Then each guarantee is broken on purpose, the suite has
+to fail, and the code is restored. Mutation sets recorded in the log:
+
+| Entry | Mutations | Result |
+|---|---|---|
+| 26 Oct — Catalogue data layer | 5 (`Math.round → Math.trunc`, `price.catch(0)`, `rating.default(...)`, ignoring `fallback: null`, `.loose()` letting `stock` through) | each failed ≥ 1 test |
+| 26 Oct — Product listing | 7 (debounce removed, push for search, debounce not cancelled on select, no URL sync, page not reset, page not clamped, case-sensitive search) | each failed ≥ 1 test |
+| 26 Oct — Cart domain and store | 7 (`getItem` → `null`, no write-skipping, duplicates allowed, eager hydration, no re-clamp, `localStorage.clear()` ignored, invalid payload kept) | each failed ≥ 1 test |
+| 27 Oct — Zod out of the initial client load | 2 (each original static Zod import reintroduced) | the cart one fails all 6 cart client modules |
+| 27 Oct — Security | 1 (`style-src-attr` removed) | CSP E2E test fails with 50 violations |
+
+That's 22 recorded mutations. Bug fixes were also test-first (26 Oct — Duplicate product ids: "the duplicate
+test failed before the change").
+
+**`client-bundle-guard.test.ts`**: imports every `'use client'` module with `zod` mocked to throw, so a static
+Zod import anywhere in a client module's graph fails CI. It finds client modules by their directive, so new
+ones are covered (27 Oct — Zod out of the initial client load).
+
+**A validation hazard, pinned with a test**: `z.url({ hostname })` takes a RegExp and doesn't anchor it, so
+`/fakestoreapi\.com/` would accept `https://fakestoreapi.com.evil.example/…`. The schema was anchored
+(`/^fakestoreapi\.com$/`) from its first commit, and a look-alike-host test in `api-product.test.ts` keeps it
+so (26 Oct — Catalogue data layer, Surprises).
+
+**Strongest case: the Escape race** (26 Oct — Cart UI components, "Bug found in the browser, fixed
+test-first"). After Escape, the drawer was shut but the store still said open, so an immediate click on the cart
+button did nothing. Browsers fire `close` as a queued task; the jsdom `<dialog>` stand-in fired it
+synchronously, which hid the bug from the component tests. The stand-in was changed to fire `close`
+asynchronously, like browsers; the new tests failed on the old code; only then was the fix (every close path
+updates state synchronously) accepted.
+
+**Evidence discipline**: two responsive screenshot sets were nearly kept that misrepresented the app. One
+captured the loading skeleton instead of the listing; the other was labelled "snapshot" but was serving cached
+live data. Both were deleted and re-taken rather than used (27 Oct — Responsive and Lighthouse verification).
+
+**Oversight in the other direction**: when drafting this summary, the brief supplied a "Before" code snippet
+for a hostname bug and attributions for three audits. The agent checked them against the log and `git log`,
+found that no commit ever contained that snippet and that the attributions weren't on record, and left `TODO`
+markers instead of writing them. The audits above were replaced, and the 26 Oct entry that held the snippet
+(now "Image hostname check (validation hazard)") corrected, as a result (27 Oct).
+
+### A Disagreement
+
+**`zod/mini` stacked on top of lazy-loading** (27 Oct — Zod out of the initial client load).
+- The agent prototyped and measured `zod/mini`: "a real cut (98 → 59 KB initial; total 395 → 355 KB) with the
+  same rules and tests". The full measurement table, including lazy-loading and the browser numbers, is in
+  `docs/performance-notes.md`.
+- The agent's first write-up proposed keeping it on the table: "B could be layered on top later to shrink the
+  on-demand chunk (about 40% smaller)" (`docs/performance-notes.md` at `421cd6c`).
+- The human declined ("user decision"): "~12 KB, after load, for returning visitors only, at the cost of
+  rewriting a trust-boundary schema." The README ("What I'd do with more time") gives the on-demand chunk as
+  30.8 KB transferred.
+
+---
+
+## 2026-10-27 — Responsive and Lighthouse verification (SC-004)
+
+**Two production variants.**
+- *Live*: `.next`, live API, 20 products, so pagination appears.
+- *API-blocked*: so the snapshot notice shows. Blocking the API only at runtime didn't work: the build had already
+  cached the live catalogue, so the "snapshot" server served live data. The working variant is built *and*
+  served with a dead `HTTPS_PROXY` (`NODE_USE_ENV_PROXY=1`), Google Fonts exempted via `NO_PROXY` so
+  `next/font` still downloads, into a temporary `.next-snapshot`. Confirmed by the route's 1m/5m snapshot cache
+  lifetime and the notice in the HTML. The directory was deleted afterwards, and the `tsconfig.json` type paths
+  the build added were reverted.
+
+**Responsive, at 375, 768, and 1280 px** (Playwright, touch emulation at the two narrower widths), both variants:
+- no horizontal scroll;
+- no interactive target under 24 × 24 px (filters and steppers are 44 px);
+- the filter controls stay inside the viewport and work;
+- pagination fits and navigates;
+- the drawer is full-screen at 375 (375 × 812) and a 448 px side panel at larger widths, and closes by tap and by
+  Escape;
+- the snapshot notice wraps to three lines at 375 px without breaking the layout.
+
+18 screenshots in `docs/images/responsive-*`.
+
+**Cosmetic findings, fixed separately (`a12f151`).**
+- *"Add  to cart"*: the visually hidden title split the label into two flex items, so `Button`'s `gap-2` showed
+  as an 8 px space. The label is now one element: 3.4 px, one space, measured in Chromium.
+- *"All Categories"*: CSS `capitalize` made the select differ from its source string. Removed.
+- *Reported, not changed*: two trash icons on a line at quantity 1 ("−" as remove, plus Remove), as the contract
+  specifies.
+
+**Lighthouse 13.5.0, mobile preset, 3 runs per target.**
+- *Deployed*: performance 94 / 98 / 98, median **98**.
+- *Local `next start`*: 93 / 95 / 91, median **93**.
+- *Accessibility, best practices, and SEO*: 100 in all six runs.
+- *Metrics* (median runs): deployed LCP 2.4 s, CLS 0, TBT 30 ms; local LCP 3.2 s.
+- *LCP element*: the first card's image every time.
+- **SC-004 (performance and accessibility ≥ 90 on mobile) verified.** Local scores lower despite tiny observed
+  load phases. The likely cause is Lighthouse's simulated throttling of HTTP/1.1 on localhost vs Vercel's
+  HTTP/2 CDN; not isolated.
+- *Suggestions*: measured and declined, with the reasons in `docs/performance-notes.md`. One is
+  **identified, fix known, not applied**: the cards' `sizes` hint over-fetches portrait images (e.g.
+  370 × 640 served, 191 × 330 shown).
+
+**Evidence discipline.** Two screenshot sets were nearly kept that misrepresented the app. One captured the
+loading skeleton (the script waited for the cart button, which is in the layout, not for the streamed product
+grid). The other was labelled "snapshot" but served cached live data. Both were deleted and re-taken.
+
+**Slip: the re-take that silently did nothing.** After the cosmetic fixes, the screenshot re-take looped over
+`"live 3002" "snapshot 3003"` with `set -- $v`. zsh doesn't word-split unquoted variables, so the port was
+empty, the script failed, and an output filter hid the error. `git status` showing no changed images exposed it.
+I re-ran it, and checked file timestamps before trusting the result.
+
+---
+
 ## 2026-10-27 — CI workflow
 
 `.github/workflows/ci.yml` runs on every push and PR, as two parallel jobs, and cancels superseded runs on the same ref.
@@ -228,31 +448,30 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 ---
 
-## 2026-10-26 — Human Audit
+## 2026-10-26 — Image hostname check (validation hazard)
 
-### Unanchored hostname check on product image URLs (security)
+The product schema restricts image URLs to `fakestoreapi.com`, so a spoofed or compromised API response
+can't point `next/image` at an arbitrary host.
 
-The product schema restricts image URLs to fakestoreapi.com so that a spoofed
-or compromised API response cannot point next/image at an arbitrary host.
+The hazard: `z.url({ hostname })` takes a RegExp and doesn't anchor it. An unanchored `/fakestoreapi\.com/`
+would match anywhere in the hostname, so `https://fakestoreapi.com.evil.example/x.jpg` would pass, and the
+"allowlist" would really be a substring search. Checked by running the unanchored pattern against the
+look-alike host (accepted) and the anchored one (rejected).
 
-Before:
-    image: z.string().url().regex(/https:\/\/fakestoreapi\.com\//)
+The schema has been anchored since its first commit (`00744b6`), and the rule now lives in
+`src/lib/image-url.ts`:
 
-The problem: a regex without anchors matches anywhere in the string, so
-https://fakestoreapi.com.evil.example/x.jpg passes validation. The attacker
-controls the real host; our "allowlist" is actually a substring search.
+```ts
+export const ImageUrlSchema = z.url({ protocol: /^https$/, hostname: /^fakestoreapi\.com$/ });
+```
 
-After:
-4: * Mirrors one item of GET https://fakestoreapi.com/products, and nothing more (data-model §1).
-15:  image: z.url({ protocol: /^https$/, hostname: /^fakestoreapi\.com$/ }),
+A test for the look-alike host (`api-product.test.ts`) keeps it that way.
 
-Verified by running the unanchored pattern against the look-alike host and
-confirming it was accepted, then confirming the anchored version rejects it.
-A test for the look-alike host is now in the suite.
+**Correction (27 Oct)**: this entry was first titled "Human Audit" and showed a "Before" snippet presented as a
+bug that was caught and fixed. No commit ever contained that code, so it has been removed, and the entry now describes what happened: a hazard,
+identified and pinned with a test. The previous wording is in git history.
 
-This is the kind of bug that survives code review: the intent is readable and
-every happy-path test passes. It only surfaces if you ask what else the
-pattern matches.
+---
 
 ## 2026-10-26 — Catalogue data layer (FR-010, FR-013, FR-014)
 
