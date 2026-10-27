@@ -5,6 +5,16 @@
 **Finding.** `zod` was 98.54 KB of the client initial load for `/` (`next analyze`, Client, Initial load only:
 394.93 KB total; the route header showed 427.64 KB). That's about 3× all of `src/`.
 
+![Bundle analyzer route list: / at 427.64 KB](images/bundle-before-route.jpg)
+
+*Bundle analyzer route list, captured 26 Oct 2026 at 23:17, before the first Zod fix (`db29eda`): `/` at
+427.64 KB.*
+
+![Bundle analyzer table, Client, Initial load only: zod 98.54 KB, total 394.93 KB](images/bundle-before-zod-initial-load.jpg)
+
+*Same session, Client view with "Initial load only" on: `zod` at 98.54 KB (18 modules) of a 394.93 KB total.
+The switch renders as off in this capture, but it was confirmed on; with it off, the total was 449.78 KB.*
+
 **Why it was there.** Tracing the import graph (`next analyze export`) showed two client paths:
 
 1. `CatalogueFilters` → `schemas/catalogue-query` → zod. The filter form reused the server's URL parser to
