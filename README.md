@@ -89,8 +89,8 @@ the revalidation all treat the data as volatile, which is the right assumption f
 deterministic per product, so it's the same on server and client. Every message based on it says so:
 "Only 5 available (demo inventory)". A real inventory API would replace that one file.
 
-**Deliberately not handled: merging cart edits across tabs.** This is the edge case I chose not to solve.
-If you change the cart in two tabs, the most recent write wins and the other tab updates to match. I didn't try
+**The edge case I chose not to handle: merging concurrent cart edits across tabs.** This is the one edge case I
+left unhandled on purpose. If you change the cart in two tabs, the most recent write wins and the other tab updates to match. I didn't try
 to merge. A cart is small, edits in two tabs at once are rare, and a
 merge would have to guess intent (did you remove that item, or just not add it in this tab?). Always showing the
 latest saved state is easier to predict than a clever merge.
