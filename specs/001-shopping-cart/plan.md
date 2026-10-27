@@ -55,7 +55,7 @@ drawer, 4 user stories, 18 FRs.
 | III. Untrusted boundaries | API, storage, URL validated; nothing as HTML; dev-visible failures | ✅ Three Zod schemas (R4) | ✅ Contracts define the per-boundary failure → fallback and dev warning |
 | IV. Accessible by default | Keyboard, semantics, focus, announcements, AA, CI checks | ✅ R9 | ✅ contracts/ui-components.md specifies names, focus targets, and copy; axe runs in E2E/CI |
 | V. Behavioural, layered testing | Unit → integration (mocked network) → E2E; never weakened | ✅ R11 | ✅ An MSW scenario list and quickstart scenarios map to every acceptance scenario |
-| VI. Measured performance | Claims backed by profiler, Lighthouse, or bundle analysis | ✅ R12 | ✅ Evidence goes in `docs/performance.md`; no speculative memoisation |
+| VI. Measured performance | Claims backed by profiler, Lighthouse, or bundle analysis | ✅ R12 | ✅ Evidence goes in `docs/performance-notes.md`; no speculative memoisation |
 | VII. Owned AI output | Corrections logged | ✅ `developer-log.md` is created in setup | ✅ |
 | Constraint: deps | Each new dep is justified | ✅ The stack deps are pre-approved in CLAUDE.md. The 2 extra test deps were approved by the engineer, 1 was declined. The bundle analyzer is not needed (`next analyze`) | ✅ |
 | Constraint: CI | lint, typecheck, test on push | ✅ R13 | ✅ |
@@ -110,8 +110,8 @@ src/
 ├── lib/                         # money.ts, stock.ts, inventory.ts (SIMULATED), env.ts (server-only CATALOGUE_SOURCE)
 └── test/                        # msw server + handlers, render helpers, jest setup
 
-e2e/                             # catalogue.spec.ts, cart.spec.ts, persistence.spec.ts, a11y.spec.ts
-docs/                            # adr-001-state-management.md, performance.md, security.md
+e2e/                             # cart.spec.ts, keyboard.spec.ts, persistence.spec.ts, a11y.spec.ts, support.ts
+docs/                            # adr-001-state-management.md, performance-notes.md, security-notes.md
 .github/workflows/ci.yml
 jest.config.mjs  playwright.config.ts  developer-log.md  README.md
 ```

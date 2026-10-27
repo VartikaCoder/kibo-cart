@@ -1,6 +1,7 @@
 # Quickstart & Validation Guide: Shopping Cart
 
-**Feature**: `001-shopping-cart` | Use this guide to prove the feature works end to end once it is implemented.
+**Feature**: `001-shopping-cart` | Use this guide to prove the implemented feature works end to end. Steps
+for parts that were not built are marked **Not implemented**.
 Details live in [data-model.md](./data-model.md) and [contracts/](./contracts/); this guide does not repeat them.
 
 ## Prerequisites
@@ -14,8 +15,11 @@ Details live in [data-model.md](./data-model.md) and [contracts/](./contracts/);
 npm ci
 npm run dev                                   # http://localhost:3000, live fakestoreapi
 CATALOGUE_SOURCE=fixture npm run dev          # deterministic local fixture
-CATALOGUE_SOURCE=fixture-large npm run dev    # 500 generated products (large-catalogue edge case)
 ```
+
+`CATALOGUE_SOURCE=fixture-large` (500 generated products) and `fixture-broken` were planned and are **not
+implemented**: any value other than `fixture` is a startup error. The large-catalogue and error-state paths are
+covered by unit and component tests instead (contracts/catalogue-api.md).
 
 ## Automated gates (all must pass)
 
@@ -25,8 +29,9 @@ npm run typecheck
 npm run test:cov    # thresholds: global ≥ 80%, src/features/cart/domain ≥ 90% lines + branches (SC-006)
 npm run build
 npm run e2e         # builds and serves with CATALOGUE_SOURCE=fixture; includes axe checks (SC-003)
-npm run analyze     # `next analyze`; record notable chunks in docs/performance.md
 ```
+
+Bundle analysis uses Next's built-in `next analyze`; findings are in `docs/performance-notes.md`.
 
 ## Manual validation scenarios
 
@@ -41,9 +46,10 @@ Each step names the acceptance scenario it proves. Use only the keyboard unless 
    `/?category=men%27s+clothing&q=bag&sort=price-desc`. Copy it into a new tab and get the same view (US1-AS5).
 4. Search `zzzz`. The empty state says nothing matched, with "Clear filters". Activating it returns to `/` (US1-AS4).
 5. Search `<script>"%&.*`. No crash, it renders as literal text, and the empty state shows.
-6. With `fixture-large`, go to page 3 and then press Back. You are on page 2 (US1-AS6). Visit `/?page=9999`:
+6. With `fixture-large` (**not implemented**; the 500-product case is covered by
+   `apply-catalogue-query.test.ts`), go to page 3 and then press Back. You are on page 2 (US1-AS6). Visit `/?page=9999`:
    it clamps to the last page. Visit `/?sort=bogus&category=nope`: defaults apply.
-7. Error state: stop the network (or set `CATALOGUE_SOURCE=fixture-broken`) with an invalid snapshot → message and
+7. Error state: stop the network (`CATALOGUE_SOURCE=fixture-broken` is **not implemented**) with an invalid snapshot → message and
    **Retry** (US1-AS3). With a live source failing and a valid snapshot → the "saved copy" notice and Retry.
 
 ### US2: Build a cart
@@ -71,6 +77,9 @@ Each step names the acceptance scenario it proves. Use only the keyboard unless 
 
 ### US4: Price integrity
 
+> **Not implemented** (deliberately scoped out, FR-018); see the README, [What I'd do with more time](../../README.md#live-price-reconciliation-and-no-longer-available-lines-fr-018).
+> The steps below describe the intended behaviour and will not pass today.
+
 1. In live or fixture mode, add an item, then edit `unitPriceCents` in localStorage to a different value and reload.
    The line shows the current price plus a "Price changed from $a to $b" notice, and the change is announced (US4-AS1).
 2. Edit a `productId` to one that doesn't exist (e.g. `99999`) with valid other fields. The line shows "No longer
@@ -79,11 +88,11 @@ Each step names the acceptance scenario it proves. Use only the keyboard unless 
 
 ### Non-functional
 
-- **Accessibility**: `npm run e2e` axe specs report 0 violations on the listing, the open drawer, empty, and error
-  states (SC-003). Manually check VoiceOver on macOS Safari for steps US2-1 to 4.
+- **Accessibility**: `npm run e2e` axe specs report 0 violations on the listing and the open drawer (SC-003).
+  axe on the empty and error states is **not implemented** (it needed the unbuilt fixture modes). Manually check VoiceOver on macOS Safari for steps US2-1 to 4.
 - **Responsive**: check 360px, 768px, and 1280px widths. There is no horizontal scroll, and the drawer is full-width on mobile (FR-015).
 - **Re-render isolation**: open the React DevTools Profiler, increment one cart line, and only that card's
-  `AddToCartControl` and the cart UI commit (SC-005). Save a screenshot to `docs/performance.md`.
+  `AddToCartControl` and the cart UI commit (SC-005). The recorded capture is `docs/images/profiler-ranked-add-to-cart.png`.
 - **Lighthouse (mobile)** on the deployed URL: Performance and Accessibility ≥ 90 (SC-004).
 - **Security headers**: `curl -I http://localhost:3000/` shows `Content-Security-Policy`, `X-Content-Type-Options`,
   `Referrer-Policy`, and `Permissions-Policy`. `grep -r dangerouslySetInnerHTML src` returns nothing.

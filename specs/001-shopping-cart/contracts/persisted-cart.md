@@ -52,4 +52,4 @@ add a migration test with a fixture of the old shape, and note it in the README.
 ## Security note
 
 Validation prevents crashes; it does **not** establish trust. Prices and quantities in storage can be forged,
-so a real checkout must re-price and re-check availability server-side (recorded in `docs/security.md`).
+so a real checkout must re-price and re-check availability server-side (recorded in `docs/security-notes.md`).

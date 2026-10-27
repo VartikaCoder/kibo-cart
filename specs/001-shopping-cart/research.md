@@ -32,7 +32,7 @@ the scaffold and the version's defaults. Full static generation — impossible, 
 - `error.tsx` receives `{ error: unknown, retry: () => void }`, not `reset`.
 - `updateTag(tag)` (Server Actions only) expires a tag immediately; used by the "Retry" action.
 - `cacheLife` can be called conditionally, but only once per invocation (`cacheLife.md` → "Conditional cache lifetimes").
-- `next analyze` is built in, so `npm run analyze` needs **no** `@next/bundle-analyzer` dependency.
+- `next analyze` is built in, so bundle analysis needs **no** `@next/bundle-analyzer` dependency (run directly; there is no npm script for it).
 - Cache Components forbids a `runtime` segment export; the app runs on Node.js.
 - Jest cannot render `async` Server Components (`testing/jest.md`); those are covered by Playwright.
 
@@ -235,9 +235,10 @@ renders as text, and there is no user-generated HTML. The `'unsafe-inline'` trad
 - **MSW 2** (`msw/node`) intercepts `https://fakestoreapi.com/products` in node-env tests: valid, partially-invalid,
   all-invalid, 500, timeout, and non-JSON. Client component tests need no network, because they receive props.
 - **Playwright** runs against `next build && next start` with `CATALOGUE_SOURCE=fixture` (server-only env read in
-  `catalog/api`), so E2E is deterministic. `CATALOGUE_SOURCE=fixture-large` serves a generated catalogue of 500
-  items for the large-catalogue edge case. `@axe-core/playwright` runs on the listing, the open drawer, empty, and
-  error states (SC-003).
+  `catalog/api`), so E2E is deterministic. `@axe-core/playwright` runs on the listing and the open drawer (SC-003).
+  **Not implemented:** `CATALOGUE_SOURCE=fixture-large` (a generated 500-item catalogue) and `fixture-broken`, and
+  with them axe on the empty and error states. Those paths are covered by unit and component tests
+  (contracts/catalogue-api.md).
 - **Coverage**: `coverageThreshold` global 80% lines/branches, and `./src/features/cart/domain/` 90% (SC-006).
 - **No** snapshot tests. RTL queries by role/label.
 
@@ -250,9 +251,11 @@ needed, because network tests run in the node environment.
 
 **Decision**: SC-005 — `ProductCard` is a Server Component. The only client leaf per card is `AddToCartControl`,
 subscribing with `useCartStore(s => selectLineQuantity(s, productId))` (a primitive), so changing one line
-re-renders only that card's control. Verified with the React Profiler (screenshot in `docs/performance.md`) and an
-RTL render-count test using a `<Profiler>` `onRender` counter. SC-004 — Lighthouse mobile on the deployed URL,
-with results recorded in `docs/performance.md`. `next/image` uses explicit `sizes` and `priority` on the first row only.
+re-renders only that card's control. Verified manually with the React Profiler
+(`docs/images/profiler-ranked-add-to-cart.png`). An automated RTL render-count test was planned and **not
+built**, so SC-005 is not checked in CI. SC-004 — Lighthouse mobile on the deployed URL, with results recorded in
+`docs/performance-notes.md`. `next/image` uses explicit `sizes`, and the first row loads with `loading="eager"` and
+`fetchPriority="high"` (Next 16 deprecated `priority`).
 Skeletons match final card dimensions (CLS ≈ 0, US1-AS2).
 
 **Alternatives considered**: `React.memo` everywhere — unmeasured optimisation (Constitution VI).

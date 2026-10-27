@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-shopping-cart`
 **Created**: 2026-10-26
-**Status**: Draft
+**Status**: Implemented, except FR-018 / User Story 4 (deliberately scoped out; marked below)
 **Input**: Senior UI Engineer assignment — product listing, cart with persistence, accessible and responsive UI, tested and documented.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -88,7 +88,7 @@ A shopper sees current prices even if a price changed after they added the item.
   - *Per-line quantity cap (real business rule)*: a line cannot exceed 10 units. This is a store policy and holds regardless of inventory.
   - *Stock (simulated)*: availability comes from a clearly labelled simulated inventory adapter, not from the API. It is **not** added to the API schema. The UI and docs never present it as real stock data.
   - The effective maximum is `min(perLineCap, simulatedAvailability)`; a real inventory API would replace only the adapter.
-- **Invalid API data**: products failing validation are excluded; if none are valid, the error state is shown.
+- **Invalid API data**: products failing validation are excluded. If none are valid, the bundled snapshot is served instead (with the saved-copy notice); the error state is shown only if the snapshot yields no valid products either (contracts/catalogue-api.md).
 - **Duplicate product ids**: two rules, by source. Cart lines are keyed by product id, so duplicates must never reach the cart.
   - *Catalogue (API data)*: the first valid item with an id is kept and later ones are dropped (logged in development). Validation runs first, so an invalid item never claims an id. API data is third-party and partially usable: one bad item shouldn't cost the shopper the rest of the catalogue.
   - *Saved cart (localStorage)*: duplicate ids invalidate the whole payload, and the cart resets to empty (contracts/persisted-cart.md). We wrote this data ourselves, so a duplicate means it was corrupted or tampered with. Nothing then tells us which line reflects what the shopper meant, and guessing could silently change quantities or prices. Starting empty is the only safe choice.

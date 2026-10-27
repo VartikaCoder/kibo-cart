@@ -111,8 +111,9 @@ failing on any violation. Removing `style-src-attr` makes it fail with 50 violat
 
 ## 5. Dependencies (`npm audit`, 2026-10-27)
 
-- **`npm audit`: 0 vulnerabilities** (0 critical, high, moderate, low, info) across 679 installed packages.
-  **`npm audit --omit=dev`: 0** across the 30 production packages. Nothing to fix, so nothing changed.
+- **`npm audit`: 0 vulnerabilities** (0 critical, high, moderate, low, info) across the 769 packages it counts
+  from the lockfile, 25 of them production. **`npm audit --omit=dev`: 0.** Re-run on 2026-10-27 with npm
+  11.19.0. Nothing to fix, so nothing changed.
 - **Install scripts not run.** npm 11 doesn't run dependency install scripts until they're approved. Three are
   pending, and I've deliberately left them unapproved, because lint, unit tests, build, and E2E all pass without
   them:
