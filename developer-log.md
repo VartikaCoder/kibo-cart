@@ -345,7 +345,7 @@ Same run's warnings, fixed: the v4 actions run on deprecated Node 20, so they're
 
 **CSP test**: no longer skips. It asserts the headers (and no `unsafe-eval` in production), browses, adds, opens the drawer, and reloads to cover the lazy validation. Removing `style-src-attr` makes it fail with 50 violations, as checked.
 
-**`npm audit`**: 0 vulnerabilities across the 769 packages it counts from the lockfile (25 production), and 0 with `--omit=dev` (figures from a re-run on 2026-10-27, npm 11.19.0; the counts first written here, 679 and 30, couldn't be reproduced). Three install scripts (`@parcel/watcher`, `msw`, `unrs-resolver`) are left unapproved under npm 11, because everything works without them. Reasons are in the security notes.
+**`npm audit`**: 0 vulnerabilities across the 769 packages it counts from the lockfile (25 production), and 0 with `--omit=dev` (figures from a re-run on 2026-10-27, npm 11.19.0). The 679 and 30 first written here were also right, but they count something else: `npm ls` lists the 679 packages actually installed (30 production), while `npm audit` counts every lockfile entry, including 101 optional platform packages that aren't installed on this machine. Three install scripts (`@parcel/watcher`, `msw`, `unrs-resolver`) are left unapproved under npm 11, because everything works without them. Reasons are in the security notes.
 
 **Not done**: nonce or SRI script-src (trade-off in the security notes, §4); `upgrade-insecure-requests` (it would upgrade the http localhost E2E server; production is HTTPS-only on Vercel).
 
