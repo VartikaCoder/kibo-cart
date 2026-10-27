@@ -27,8 +27,13 @@ unsupported and was removed (Verification, "A correction to this log").
   (catalogue API, persisted cart, UI components, URL params). `CLAUDE.md` says to stop and ask when it and the
   spec disagree.
 - These files were in use, but not yet tracked, from the start. They were first committed in `e921a99`
-  (26 Oct, 20:26), after the first three data-layer commits. `00744b6` (19:53) already cites
-  `contracts/catalogue-api.md` and data-model §1.
+  (26 Oct, 20:26), 33 minutes after the first data-layer commit, `00744b6` (19:53). Two things show they
+  existed earlier. `00744b6` already cites `contracts/catalogue-api.md` and data-model §1. And the agent's own
+  conduct: at 19:48, before writing any code, it stopped to ask before installing Zod, Jest and MSW, and
+  justified them as "CLAUDE.md's approved stack". The spec, plan and contracts don't tell it to ask before
+  installing (the constitution asks only for a written justification); `CLAUDE.md` does ("Do not add a
+  dependency without asking first"). That question is in the session transcript, not in git: contemporaneous,
+  but circumstantial for anyone who has only the repository.
 - The dependency rule ("Do not add a dependency without asking first…", `CLAUDE.md`; "No new dependency without
   a written justification", constitution) made every install a stop-and-ask point. In the session transcript
   the agent asked before installing Zod/Jest/MSW, the four React Testing Library / jsdom packages, and
@@ -47,6 +52,9 @@ unsupported and was removed (Verification, "A correction to this log").
 **Iterated prompt: the catalogue data layer** (26 Oct — Catalogue data layer, "Plan wins over the task
 prompt, with additions"). Both versions are from the session transcript.
 
+Why the first attempt wasn't good enough: I wrote it without reading the plan the agent had generated, so it
+contradicted it. The revision was collaborative, not a solo rewrite (see the disclosure above).
+
 *Version 1*, the task prompt (item 4 of 6):
 
 > `src/features/catalog/api/get-products.ts` — fetch with revalidate, validate with Zod, drop invalid items
@@ -56,8 +64,11 @@ prompt, with additions"). Both versions are from the session transcript.
 
 This contradicted `contracts/catalogue-api.md` on naming (`fetchCatalogue()`), structure (a `Catalogue`
 result, caching in a separate `'use cache'` wrapper), and error handling (`CatalogueUnavailableError` thrown
-when every source fails). The agent stopped, set out the conflict, and offered three options. I chose
-this one:
+when every source fails), and on file names. The agent stopped rather than guessing, set out the conflict,
+and offered three options: the plan plus two additions from my prompt, my prompt literally, or my names with
+the plan's behaviour. I chose the first, which it had recommended: the plan's structure, plus the two
+requirements the plan lacked (a `fallbackReason` on snapshot results and an injectable fallback, so tests can
+still reach the real error path). That option, worded by the agent, became the working instruction:
 
 *Version 2*, the option chosen:
 
@@ -142,8 +153,8 @@ if (reductions.length > 0) onQuantityReduced?.(reductions);
 ("Decisions").
 
 `CLAUDE.md` says code outside a feature reaches it only through its public entry point, never by deep paths.
-The agent's error boundary deep-imported two catalogue components. It explained why in a comment and listed
-the deviation in the log (`0bc955f`).
+The agent's error boundary deep-imported two catalogue components. It explained why in a comment and logged
+it as a decision (`0bc955f`).
 
 *Before*:
 
@@ -156,10 +167,15 @@ import { CatalogueHeading } from '@/features/catalog/components/catalogue-headin
 // rather than through the feature index (which also exports server-only code).
 ```
 
-The reason was real: `index.ts` exports server-only code, which a Client Component can't import. But a
-documented exception is how a dependency rule wears away, and I didn't accept it. The fix
-(`66a4e5c`) gives the feature a second public surface, `features/catalog/client.ts`, for Client Components;
-`index.ts` re-exports it.
+The reason was real: `index.ts` exports server-only code, which a Client Component can't import. I didn't
+catch this; the agent reported it. Its report listed five departures from the plan for me to check and asked
+for a decision on the first three (update the contracts, or revert). This was number 4, described with a
+possible fix ("A separate client-safe entry point would fix this") but left in place. My part was the
+decision: fix it rather than keep it as a documented exception, because that is how a dependency rule wears
+away. My reply, in the session transcript: "Fix 4: add a client-safe entry point so error.tsx imports through
+a public surface, not deep paths." The fix (`66a4e5c`, 20:55) landed four minutes after the listing commit
+(`0bc955f`, 20:51). It gives the feature a second public surface, `features/catalog/client.ts`, for Client
+Components; `index.ts` re-exports it.
 
 *After*:
 
