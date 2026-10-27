@@ -31,7 +31,6 @@ npm run typecheck    # tsc --noEmit
 npm test             # jest (unit + integration)
 npm run test:cov     # jest with coverage thresholds
 npm run e2e          # playwright
-npm run analyze      # bundle analyzer build
 ```
 
 Before calling any task done: `lint`, `typecheck`, and `test` must pass.
@@ -57,7 +56,7 @@ src/
       index.ts
   components/ui/        # design-system primitives (Button, Badge, QuantityStepper, Drawer...)
   lib/                  # cross-cutting utils: money, format, env, stock
-docs/  review/  e2e/  prompts/  specs/
+docs/  review/  e2e/  specs/
 ```
 
 Dependency direction (enforce it, don't work around it):
