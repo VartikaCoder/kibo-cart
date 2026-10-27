@@ -17,6 +17,14 @@ function renderControl(productId: number) {
 const status = () => screen.getByRole('status');
 
 describe('AddToCartControl (US2)', () => {
+  it('keeps the accessible name "Add {title} to cart" with the label wrapped for layout', () => {
+    seedCart();
+    renderControl(1);
+
+    // Visible spacing needs real layout, which jsdom doesn't have; this guards the name the label wrap must not change.
+    expect(screen.getByRole('button', { name: /^Add/ })).toHaveAccessibleName('Add Product 1 to cart');
+  });
+
   it('adds the product, announces it, and swaps to a stepper with focus on "+"', () => {
     seedCart();
     renderControl(1);

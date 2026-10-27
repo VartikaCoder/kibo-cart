@@ -39,7 +39,10 @@ export function AddToCartControl({ product }: { product: ProductSnapshot }) {
   if (quantity === 0) {
     return (
       <Button ref={addRef} onClick={add} aria-disabled={!hydrated} className="w-full">
-        Add<VisuallyHidden> {title}</VisuallyHidden> to cart
+        {/* One element, so the flex gap in Button can't split the text around the hidden title ("Add  to cart"). */}
+        <span>
+          Add<VisuallyHidden> {title}</VisuallyHidden> to cart
+        </span>
       </Button>
     );
   }

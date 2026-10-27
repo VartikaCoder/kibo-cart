@@ -141,5 +141,7 @@ Screenshots: `docs/images/responsive-{live,snapshot}-{listing,drawer,pagination}
   live-region semantics, not observed.
 - **Two controls share a name at quantity 1.** "−" and the trash button are both "Remove {title} from cart", as
   the contract specifies. Both do the same thing, but a screen-reader user hears the same name twice in one line.
-- **Visible spacing in "Add to cart".** The button lays out its parts with a flex gap, so the visible text reads
-  with a wide gap ("Add  to cart"). The accessible name is unaffected. This is cosmetic and not yet fixed.
+- **Visible spacing in "Add to cart"** (fixed 27 Oct). The visually hidden title split the label into two flex
+  items, so `Button`'s gap showed as an 8 px space. The label is now one element, so the gap is one ordinary
+  space (3.4 px), measured in a real browser. A component test guards the accessible name, but jsdom can't
+  measure layout, so nothing in CI checks the spacing itself.

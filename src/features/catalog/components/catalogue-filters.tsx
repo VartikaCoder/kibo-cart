@@ -102,7 +102,7 @@ export function CatalogueFilters({ query, categories }: CatalogueFiltersProps) {
           name="category"
           value={fields.category ?? ''}
           onChange={(e) => onSelectChange({ category: e.target.value === '' ? null : e.target.value })}
-          className={`${fieldClass} capitalize`}
+          className={fieldClass}
         >
           <option value="">All categories</option>
           {categories.map((category) => (
