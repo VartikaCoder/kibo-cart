@@ -27,7 +27,7 @@ Do not add a dependency without asking first and stating why the platform or exi
 npm run dev          # local dev server
 npm run build        # production build
 npm run lint         # eslint
-npm run typecheck    # tsc --noEmit
+npm run typecheck    # next typegen && tsc --noEmit
 npm test             # jest (unit + integration)
 npm run test:cov     # jest with coverage thresholds
 npm run e2e          # playwright
@@ -55,7 +55,7 @@ src/
       components/
       index.ts
   components/ui/        # design-system primitives (Button, Badge, QuantityStepper, Drawer...)
-  lib/                  # cross-cutting utils: money, format, env, stock
+  lib/                  # cross-cutting utils: money, env, stock, inventory (simulated), relative-time, image-url
 docs/  review/  e2e/  specs/
 ```
 
