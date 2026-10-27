@@ -154,14 +154,17 @@ I chose Playwright because the cross-tab test needs two tabs in one browser, whi
 storage events between tabs.
 Network calls are mocked with MSW, never by mocking our own modules.
 
-The coverage thresholds are 90% for the cart domain and 80% for the rest, enforced in CI; actual coverage is about 99% of lines and 96% of branches. Each CI run uploads the HTML report as the `coverage-report` artifact. The
+The coverage thresholds are 90% for the cart domain and 80% for the rest, enforced in CI; actual coverage is about 99% of lines and 96% of branches, and 100% of lines in the cart domain. Both thresholds sit below the actual numbers on purpose: they're a floor that catches regressions, not a target the tests were tuned to hit. A threshold set at today's figure would fail CI on the next honest refactor that happens to remove a few covered lines. Each CI run uploads the HTML report as the `coverage-report` artifact. The
 effort went where bugs are silent and expensive: the cart rules, money, and every validation boundary (API,
 saved cart, URL). Some files are left out of coverage, each with its reason in `jest.config.mjs`: route files
 in `src/app` and the two catalogue loaders that need the Next runtime (`get-catalogue.ts`,
-`refresh-catalogue.ts`) are checked by the build and end to end instead; the rest are re-export entry points
-(`index.ts`, `client.ts`), type-only modules, test helpers, and the tests themselves. I didn't
-chase 100% on UI wiring, because tests written only to execute glue code end up asserting structure rather than
-behaviour: they break on harmless refactors and catch little.
+`refresh-catalogue.ts`, which use `'use cache'` and `updateTag`, so Jest can't run them) are checked by the
+build and end to end instead; the rest are re-export entry points (`index.ts`, `client.ts`), type-only modules,
+test helpers, and the tests themselves. 100% isn't the goal either. What's left uncovered is mostly defensive
+branches: storage that throws in locked-down browsers, a saved payload that isn't even an envelope, and
+null-ref guards. Typing a quantity through the cart commands is the one real path Jest doesn't reach, and the
+E2E core flow covers it. Tests written only to execute that kind of glue end up asserting that the code exists
+rather than that it behaves: they break on harmless refactors and catch little.
 
 Throughout, I checked tests by breaking the code they protect and making sure they failed. The developer log
 records 22 of those checks. There's also a guard test that fails if any client component imports Zod directly,
