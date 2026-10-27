@@ -139,16 +139,19 @@ old-format fixture, and a note here. It's still version 1.
 | SC-003 | Zero automated accessibility violations | axe in Playwright (WCAG 2.2 A/AA) on the listing and the open cart: zero |
 | SC-004 | Lighthouse mobile performance and accessibility ≥ 90 | deployed: 98 and 100 (median of 3); see [performance notes](docs/performance-notes.md) |
 | SC-005 | Changing one cart line doesn't re-render other cards | React Profiler capture of an add-to-cart: only the cart components and one card's control re-render ([image](docs/images/profiler-ranked-add-to-cart.png)). Not checked by an automated test |
-| SC-006 | Cart domain ≥ 90% coverage, project ≥ 80% | domain 100% lines / 98.8% branches; project 99.4% / 95.7%. CI enforces the 80% overall threshold, not a separate domain one |
+| SC-006 | Cart domain ≥ 90% coverage, project ≥ 80% | domain 100% lines / 98.8% branches; project 99.4% / 95.7%. CI enforces both: 90% on the cart domain and 80% on the rest |
 | SC-007 | Cart change shows in another tab within 1 s | E2E test with a 1-second limit |
 
 ## Tests
 
 About 360 Jest tests (domain, store, schemas, components) and 8 Playwright tests that only cover what jsdom
 can't: real storage events between tabs, real focus behaviour in the modal, axe, and the security headers.
+I chose Playwright because the cross-tab test needs two tabs in one browser, which Cypress doesn't support
+(it runs inside a single tab), and not RTL alone because jsdom has no real `showModal()`, no layout, and no
+storage events between tabs.
 Network calls are mocked with MSW, never by mocking our own modules.
 
-The coverage threshold is 80%, enforced in CI; actual coverage is about 99% of lines and 96% of branches. The
+The coverage thresholds are 90% for the cart domain and 80% for the rest, enforced in CI; actual coverage is about 99% of lines and 96% of branches. Each CI run uploads the HTML report as the `coverage-report` artifact. The
 effort went where bugs are silent and expensive: the cart rules, money, and every validation boundary (API,
 saved cart, URL). Route files in `src/app` are left out of coverage and checked end to end instead. I didn't
 chase 100% on UI wiring, because tests written only to execute glue code end up asserting structure rather than
