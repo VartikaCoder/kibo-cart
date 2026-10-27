@@ -74,6 +74,7 @@ the performance score lists all three, and the other columns come from the media
   third-party: the cards' `sizes` hint requests full-width images that `object-contain` then shows narrower for
   portrait products (e.g. 370 × 640 served, 191 × 330 shown), and the unused JavaScript is 36% of one
   first-party chunk.
-- **`sizes` over-fetch: identified, fix known, not applied.** The fix is a narrower `sizes` value on the
-  product cards (`CARD_IMAGE_SIZES` in `product-card.tsx`), followed by a re-measure for a before/after here.
-  It's deferred until after the README, as a deliberate choice.
+- **`sizes` over-fetch: identified, fix known, not applied in this submission.** The fix is a narrower `sizes`
+  value on the product cards (`CARD_IMAGE_SIZES` in `product-card.tsx`), followed by a re-measure for a
+  before/after here. With LCP already inside "good", I chose to leave it rather than make an unmeasured change
+  late. It's listed in the README under "What I'd do with more time".
