@@ -39,6 +39,27 @@ npm run e2e
 `CATALOGUE_SOURCE=fixture` serves that same fixture data in any mode. Any other value is treated as a mistake:
 loading the catalogue fails loudly instead of quietly falling back to live data.
 
+## Versions
+
+Exact versions from `package-lock.json`, which is what `npm ci` installs. Where `package.json` allows a range,
+it's shown in brackets.
+
+| | Version |
+|---|---|
+| Node | 24 (`.nvmrc`) |
+| Next.js | 16.4.3 |
+| React / React DOM | 19.3.0 |
+| TypeScript | 5.9.3 (`^5`) |
+| Tailwind CSS | 4.3.3 (`^4`) |
+| Zustand | 5.0.16 |
+| Zod | 4.6.7 |
+| Jest | 30.5.2 |
+| React Testing Library | 16.3.3 |
+| MSW | 2.15.0 |
+| Playwright | 1.64.1 |
+| axe-core for Playwright | 4.14.0 |
+| ESLint | 9.39.5 (`^9`) |
+
 ## How it's put together
 
 Next.js (App Router) with TypeScript, Tailwind, Zustand for the cart, and Zod wherever outside data comes in.
