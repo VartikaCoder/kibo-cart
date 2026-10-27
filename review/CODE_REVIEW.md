@@ -2,7 +2,7 @@
 
 Thanks for putting this together. The card works as expected — quantity controls, disabled state at 1, totals, and the reset on product change all behave correctly. Below are four concrete changes plus a note on `memo`. None of them change what the user sees; they mainly remove a class of sync bugs and align money handling with the rest of the codebase.
 
-I've pushed a suggested version in `product-card.good.tsx`. I verified both versions behave identically with a quick RTL test (same text, totals, disabled states, reset, and `onAdd` calls).
+I've pushed a suggested version in `product-card.good.tsx`. I verified both versions behave identically with an RTL test, [`product-card.test.tsx`](./product-card.test.tsx) (same text, totals, disabled states, reset, and `onAdd` calls).
 
 ## 1. Derived state synced through an effect
 
@@ -28,6 +28,8 @@ const lineTotalCents = unitPriceCents * quantity;
 `lineTotal` is completely determined by the price and the quantity, so there’s no reason to store it in state and then keep it updated with an effect. Every time the quantity changes, React first renders with the new quantity but the old total, then the effect runs and fixes it. That means the user can briefly see a mismatched total, and you’re doing extra work to keep two pieces of data in sync that don’t need to be separate.
 
 Calculating the total while rendering removes the state, the effect, and the extra render. The value is always correct on the first paint.
+
+This isn't theoretical. At PureSoftware, working with a UK e-commerce client, I saw a cart/invoice total that was correct on screen but wrong in the payload, because the effect that kept it in sync hadn't run yet when the payload was built. A value derived during render has no such window: in any given render, the total and the quantity it came from always agree.
 
 ## 2. Resetting state when `product.id` changes
 
@@ -132,6 +134,10 @@ If the parent passes an inline arrow, `memo` does a props comparison and then re
 ## Behaviour preserved
 
 Both versions produce the same visible result: same title, unit price, quantity controls (with “−” disabled at 1), line total, and Add to cart behavior. Quantity resets when the product changes. The good version passes the product id instead of the whole product object to `onAdd`.
+
+One small difference, deliberate: the new "−" handler clamps with `Math.max(1, q - 1)`, where the original relied on the button being disabled at 1. You can't reach below 1 either way, so nothing visible changes; the clamp is defence in depth in case the button's `disabled` state and the handler ever drift apart.
+
+Out of scope, but noticed: both versions put `aria-live="polite"` on the quantity. In an app with a single shared live region for cart changes, that's a real issue (two regions competing to announce the same change), but it predates this change and fixing it belongs in its own review.
 
 ## Tooling
 

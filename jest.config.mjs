@@ -42,7 +42,8 @@ export default async function jestConfig() {
         ...base,
         displayName: 'dom',
         testEnvironment: 'jsdom',
-        testMatch: ['<rootDir>/src/**/*.test.tsx', '<rootDir>/src/**/*.dom.test.ts'],
+        // review/: the code-review exercise's own equivalence test (the app never imports review/).
+        testMatch: ['<rootDir>/src/**/*.test.tsx', '<rootDir>/src/**/*.dom.test.ts', '<rootDir>/review/**/*.test.tsx'],
         setupFilesAfterEnv: ['<rootDir>/src/test/setup-dom.ts'],
         clearMocks: true,
       },
