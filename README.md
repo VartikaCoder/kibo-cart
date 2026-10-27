@@ -200,7 +200,8 @@ pull request.
 - [ADR-001: state management](docs/adr-001-state-management.md)
 - [Developer log](developer-log.md): how AI was used, what was checked by hand, and the decisions along the way
 - [Code review exercise](review/CODE_REVIEW.md): a before/after component review
-- Spec, plan, and contracts: [specs/001-shopping-cart/](specs/001-shopping-cart/)
+- [`specs/001-shopping-cart/`](specs/001-shopping-cart/): spec, plan, research, data model and contracts,
+  generated with GitHub Spec Kit and kept in sync with the code as decisions changed
 
 ## What I'd do with more time
 

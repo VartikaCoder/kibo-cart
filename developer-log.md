@@ -15,10 +15,18 @@ session itself, not from files in the repo.
 
 **The main direction was set before the agent wrote any code.** Choosing between options the agent offered came
 later and mattered less. What shaped the output most was the set of constraints it worked under from the start.
-`CLAUDE.md` holds the standing rules; `.specify/memory/constitution.md` holds the principles;
-`specs/001-shopping-cart/` (spec, plan, research, data model) is the authoritative spec; and `contracts/`
-defines the interfaces (catalogue API, persisted cart, UI components, URL params). Concrete effects on what the
-agent produced:
+`CLAUDE.md` holds the standing rules. Everything else came from GitHub Spec Kit, the spec-driven workflow I
+normally use, not one adopted for this exercise. The project was set up with `specify init` (Spec Kit
+1.2.4.dev0, Claude integration; `.specify/init-options.json`). `.specify/memory/constitution.md` is Spec Kit's
+constitution file and holds the principles. `/speckit-specify` produced `spec.md`, and `/speckit-plan`
+produced `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `contracts/` (catalogue API,
+persisted cart, UI components, URL params). Together they are the authoritative spec. `/speckit-tasks` wasn't
+run: there is no `tasks.md`, and work was prompted task by task instead.
+
+The written plan mattered in practice. My first data-layer prompt contradicted it, and the conflict surfaced
+only because there was a document to check against: the agent compared the prompt with
+`contracts/catalogue-api.md`, a `/speckit-plan` output, and stopped (Iterated prompt, below). Concrete effects
+of the constraints on what the agent produced:
 
 - *Ask before adding any dependency.* This is the clearest case. Before writing any code, the agent stopped to
   ask before installing Zod, Jest and MSW. It asked again before the React Testing Library / jsdom packages
@@ -67,8 +75,9 @@ unsupported and was removed (Verification, "A correction to this log").
 **Iterated prompt: the catalogue data layer** (26 Oct — Catalogue data layer, "Plan wins over the task
 prompt, with additions"). Both versions are from the session transcript.
 
-Why the first attempt wasn't good enough: I wrote it without reading the plan the agent had generated, so it
-contradicted it. The revision was collaborative, not a solo rewrite (see the disclosure above).
+Why the first attempt wasn't good enough: I wrote it without reading the plan the agent had generated with
+`/speckit-plan`, so it contradicted it. The agent caught that only because the plan and contracts existed as
+written documents. The revision was collaborative, not a solo rewrite (see the disclosure above).
 
 *Version 1*, the task prompt (item 4 of 6):
 
