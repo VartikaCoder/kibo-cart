@@ -29,6 +29,22 @@
 - Saved cart: the Zod chunk (30.8 KB transferred, 105.8 KB decoded) is fetched after hydration (started at
   46 ms, after DOMContentLoaded at 44 ms), and the cart restored normally.
 
+**Re-checked on the deployed site** (https://kibo-cart.vercel.app, 2026-10-27, Chrome DevTools Network, JS
+filter):
+
+| | JS files | Transferred | Resources (decoded) | Screenshot |
+|---|---|---|---|---|
+| No saved cart | 9 | 161 kB | 509 kB | [no cart](images/zod-chunk-deployed-no-cart.webp) |
+| Saved cart (1 item) | 10 | 193 kB | 615 kB | [saved cart](images/zod-chunk-deployed-saved-cart.webp) |
+
+- The only extra file is `3fto7xbd0i34p.js`, 32.3 kB transferred, and it accounts for the whole difference
+  (193 − 161 = 32 kB; 615 − 509 = 106 kB decoded, matching the 105.8 KB measured locally). The other nine files
+  are the same in both captures, within 0.2 kB.
+- Its initiator is the Turbopack runtime chunk, not the HTML: it's loaded on demand, not in the initial set.
+- Searching its response for "zod" finds 520 matches ([contents](images/zod-chunk-deployed-contents.webp)).
+- "Disable cache" was off for the first capture and on for the second; both show every file fetched over the
+  network, with sizes in kB rather than "(memory cache)".
+
 **Why the browser, not the analyzer, is the "after" measurement.** The analyzer's Initial-load view still
 attributes Zod (98.48 KB) to the initial load for variant A. Its own exported module graph (`next analyze
 export`) disagrees: every Zod part sits in a client group of kind `async`, triggered by
